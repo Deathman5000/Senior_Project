@@ -4,8 +4,10 @@ import os
 import time
 
 begin = time.ctime()
-sample=openpyxl.load_workbook('testfile.xlsx')
-
+current = os.getcwd()
+file = os.path.join(current, 'DATA', 'acceleration_data_1_CRACK_0.0mm.xlsx')
+#sample=openpyxl.load_workbook('acceleration_data_1_CRACK_0mm.xlsx')
+sample = openpyxl.load_workbook(file)
 sheet = sample.active
 m_row = sheet.max_row
 

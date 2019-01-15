@@ -5,7 +5,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+#Linear regression algorithm
 def estimate_coef(x, y):
     # number of observations/points
     n = np.size(x)

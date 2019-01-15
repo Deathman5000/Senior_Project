@@ -1,20 +1,12 @@
-#!/bin/bash
-
 ################################################################################
 # This script will install the needed files for running the project.
 # It will also run the project afterwards.
 ################################################################################
 
 # install python
-cd \
-cd c
-cd Users
-cd James
-cd Documents
-cd CS4391
-cd Senior_Project
-cd AI
-python-3.7.2.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+Set-Location "C:\Users\James\Documents\CS4391\Senior_Project\AI"
+Start-Process 'C:\Users\James\Documents\CS4391\Senior_Project\AI\python-3.7.2.exe' "/S" -NoNewWindow -Wait
+#python-3.7.2.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
 # install pip.
 python get-pip.py
 

@@ -14,7 +14,8 @@ $PythonPath = "C:\Users\$name\AppData\Local\Programs\Python\Python37-32"
 #python-3.7.2.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
 # install pip.
 python get-pip.py
-
+$PipPath = "C:\Users\$name\AppData\Local\Programs\Python\Python37-32\Scripts"
+[System.Environment]::SetEnvironmentVariable("PATH", $Env:Path + ";$PipPath")
 # install openpyxl
 pip install openpyxl
 

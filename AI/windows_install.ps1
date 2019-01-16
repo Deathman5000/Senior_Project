@@ -5,7 +5,12 @@
 
 # install python
 Set-Location "C:\Users\James\Documents\CS4391\Senior_Project\AI"
-Start-Process 'C:\Users\James\Documents\CS4391\Senior_Project\AI\python-3.7.2.exe' "/S" -NoNewWindow -Wait
+Start-Process 'C:\Users\James\Documents\CS4391\Senior_Project\AI\python-3.7.2.exe' -NoNewWindow -Wait
+$name = "$env:UserName"
+$PythonPath = "C:\Users\$name\AppData\Local\Programs\Python\Python37-32"
+[System.Environment]::SetEnvironmentVariable("PATH", $Env:Path + ";$PythonPath")
+#$PythonPath = gci C:\ -recurse -include python.exe -erroraction SilentlyContinue | select -Expand Directory -First 1 | select -Expand FullName
+# [System.Environment]::SetEnvironmentVariable("PATH", $Env:Path + ";$PythonPath", "user")
 #python-3.7.2.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
 # install pip.
 python get-pip.py

@@ -79,8 +79,8 @@ def main():
 
     end = time.ctime()
     #print(alist)
-    print(blist)
-    print(timelist)
+    #print(blist)
+    #print(timelist)
     print(begin)
     print(end)
     # observations

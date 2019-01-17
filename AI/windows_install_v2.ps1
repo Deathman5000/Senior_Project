@@ -2,7 +2,7 @@
 # This script will install the needed files for running the project.
 # It will also run the project afterwards.
 ################################################################################
-Set-ExecutionPolicy Bypass -Scope Process -Force
+Set-ExecutionPolicy Bypass -Scope Process
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
 # install python
 $Location = gci C:\ -recurse -include AI_Project.py -erroraction SilentlyContinue | select -Expand Directory -First 1 | select -Expand FullName

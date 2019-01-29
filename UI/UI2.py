@@ -81,10 +81,12 @@ class Choiceframe( Frame ):
 
 	def _import_clicked( self ):
 		file_path = fd.askopenfilename()
-		#check file type
-		#pass file to file processing
-		#pass data in file to AI algorithm
-		self.master.switch_frame( ResultFrame )
+
+		if file_path:
+			#check file type
+			#pass file to file processing
+			#pass data in file to AI algorithm
+			self.master.switch_frame( ResultFrame )
 
 
 class EnterDataframe( Frame ):
@@ -123,11 +125,13 @@ class ResultFrame( Frame ):
 	def __init__( self, master ):
 		super().__init__( master )
 
-		self.default_label_1 = Label( self, text = "Frame not implemented." )
-		self.default_label_2 = Label( self, text = "No progression." )
+		self.default_label_1 = Label( self, text = "Result Frame." )
+		self.default_label_2 = Label( self, text = "Frame not implemented." )
+		self.default_label_3 = Label( self, text = "No progression." )
 
 		self.default_label_1.pack( anchor = "nw" )
 		self.default_label_2.pack( anchor = "nw" )
+		self.default_label_3.pack( anchor = "nw" )
 
 		self.pack( anchor = "nw" )
 

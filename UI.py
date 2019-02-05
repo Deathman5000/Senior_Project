@@ -16,12 +16,10 @@ class Application( Tk ):
 		#self.resizable( 0, 0 ) # this prevents from resizing the window
 		self._menu = TopMenu( self )
 		self._frame = None
-		self.switch_frame( LoginFrame )
+		self.switch_frame( LoginFrame( self ) )
 
-	def switch_frame( self, frame_class ):
+	def switch_frame( self, new_frame ):
 		#Destroys current frame and replaces it with a new one.
-		new_frame = frame_class( self )
-
 		if self._frame is not None:
 			self._frame.destroy()
 
@@ -56,7 +54,7 @@ class LoginFrame( Frame ):
 
 		global LOGGED_IN
 		LOGGED_IN = True
-		self.master.switch_frame( Choiceframe )
+		self.master.switch_frame( Choiceframe( self.master ) )
 
 		#if username == "admin" and password == "password":
 		#    tm.showinfo( "Login info", "admin accepted" )
@@ -77,16 +75,16 @@ class Choiceframe( Frame ):
 		self.pack( anchor = "nw" )
 
 	def _enter_clicked( self ):
-		self.master.switch_frame( EnterDataframe )
+		self.master.switch_frame( EnterDataframe( self.master ) )
 
 	def _import_clicked( self ):
 		file_path = fd.askopenfilename()
 
 		if file_path:
-			#check file type
-			#pass file to file processing
-			#pass data in file to AI algorithm
-			self.master.switch_frame( ResultFrame )
+			## check file type
+			## pass file to file processing
+			## pass data in file to AI algorithm
+			self.master.switch_frame( ResultFrame( self.master ) )
 
 
 class EnterDataframe( Frame ):
@@ -109,16 +107,38 @@ class EnterDataframe( Frame ):
 		self.next_button.grid( row = 3, sticky = E )
 		self.continue_button.grid( row = 3, column = 1 )
 
+		self.data = {}
+
 		self.pack( anchor = "nw" )
 
 	def _next_clicked( self ):
+		try:
+			time_ = float( self.time_entry.get() )
+			value_ = float( self.value_entry.get() )
+		except ValueError:
+			tm.showinfo( "Input Error", "Invalid entry" )
+			return
+
 		# append data to data collected
-		tm.showinfo( "Button info", "Button not implemented.\nNo action." )
+		self.data.update( { time_: value_ } )
+
+		# clear entrys
+		self.time_entry.delete( 0, END )
+		self.value_entry.delete( 0, END )
 
 	def _continue_clicked( self ):
+		try:
+			time_ = float( self.time_entry.get() )
+			value_ = float( self.value_entry.get() )
+		except ValueError:
+			tm.showinfo( "Input Error", "Invalid entry" )
+			return
+
 		# append data to data collected
-		#pass data to AI algorithm
-		self.master.switch_frame( ResultFrame )
+		self.data.update( { time_: value_ } )
+
+		## pass data to AI algorithm
+		self.master.switch_frame( ResultFrame( self.master ) )
 
 
 class ResultFrame( Frame ):
@@ -153,15 +173,19 @@ class TopMenu( Menu ):
 
 		if( LOGGED_IN ):
 			LOGGED_IN = False
-			self.master.switch_frame( LoginFrame )
+			self.master.switch_frame( LoginFrame( self.master ) )
 
-	def _Reset_selected(self):
+	def _Reset_selected( self ):
 		global LOGGED_IN
 
 		if( LOGGED_IN ):
-			self.master.switch_frame( Choiceframe )
+			self.master.switch_frame( Choiceframe( self.master ) )
 
 	def _Exit_selected( self ):
+		# log out for consistancy
+		global LOGGED_IN
+		LOGGED_IN = False
+
 		self.master.destroy()
 		self.master = None
 		# this exits the program

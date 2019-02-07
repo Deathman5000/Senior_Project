@@ -1,5 +1,10 @@
 #! /usr/bin/env python
 
+import sys
+sys.path.append('/home/nb1003151/openpyxl-2.6.0')
+
+import openpyxl
+
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
@@ -80,12 +85,34 @@ class Choiceframe( Frame ):
 	def _import_clicked( self ):
 		file_path = fd.askopenfilename()
 
-		if file_path:
-			## check file type
+		if file_path: # if a file was selected
 			## pass file to file processing
-			## pass data in file to AI algorithm
-			self.master.switch_frame( ResultFrame( self.master ) )
+			data = process_file( file_path )
 
+			## pass data in file to AI algorithm
+			if data:
+				self.master.switch_frame( ResultFrame( self.master, data ) )
+
+def process_file( input_file_path ):
+	try:
+		book = openpyxl.load_workbook( input_file_path, read_only = True )
+	except openpyxl.utils.exceptions.InvalidFileException:
+		tm.showerror( "File error", "Unable to open file as XLSX file" )
+		return []
+
+	sheet = book.active
+
+	intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
+
+	return_array = []
+
+	for column in range( sheet.max_column ):
+		line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
+
+		if line:
+			return_array.append( line )
+
+	return return_array
 
 class EnterDataframe( Frame ):
 	def __init__( self, master ):
@@ -142,7 +169,7 @@ class EnterDataframe( Frame ):
 
 
 class ResultFrame( Frame ):
-	def __init__( self, master ):
+	def __init__( self, master, input_data ):
 		super().__init__( master )
 
 		self.default_label_1 = Label( self, text = "Result Frame." )

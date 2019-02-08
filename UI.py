@@ -3,6 +3,9 @@
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
+import compare
+import hashlib
+import binascii
 
 WIDTH = 350
 HEIGHT = 460
@@ -48,15 +51,23 @@ class LoginFrame( Frame ):
 
 		self.pack( anchor = "nw" )
 
+	def encrypt(self, password):# encrypt by Timothy Moore
+		password = binascii.a2b_qp(password)
+		en = binascii.hexlify(hashlib.pbkdf2_hmac('sha1', password, b'kYt20AgK9e3MdRGivNqT', 100000)).decode("utf-8")
+		return en
+
 	def _login_clicked( self ):
 		username = self.entry_username.get()
 		password = self.entry_password.get()
 		
-		tm.showinfo( "Login info", "Login not implemented.\nAccess unrestricted." )
-
-		global LOGGED_IN
-		LOGGED_IN = True
-		self.master.switch_frame( Choiceframe )
+		password = self.encrypt(password)
+		if (compare.compare(username, password)):
+			tm.showinfo( "Login info","logged in ")
+			global LOGGED_IN
+			LOGGED_IN = True
+			self.master.switch_frame( Choiceframe )
+		else:
+			tm.showinfo( "Login info", "failed." )
 
 		#if username == "admin" and password == "password":
 		#    tm.showinfo( "Login info", "admin accepted" )

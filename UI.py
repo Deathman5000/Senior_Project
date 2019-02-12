@@ -21,6 +21,7 @@ class Application( Tk ):
 		#self.resizable( 0, 0 ) # this prevents from resizing the window
 		self._menu = TopMenu( self )
 		self._frame = None
+		self._to_do = None
 		self.switch_frame( LoginFrame( self ) )
 
 	def switch_frame( self, new_frame ):
@@ -29,6 +30,12 @@ class Application( Tk ):
 			self._frame.destroy()
 
 		self._frame = new_frame
+		self.update()
+
+		if self._to_do:
+			do_now = self._to_do
+			self._to_do = None;		# prevents doing it again
+			do_now();
 
 
 class LoginFrame( Frame ):
@@ -86,40 +93,54 @@ class Choiceframe( Frame ):
 		file_path = fd.askopenfilename()
 
 		if file_path: # if a file was selected
-			## pass file to file processing
-			data = process_file( file_path )
+			try:
+				# Open file and load workbook
+				workbook = openpyxl.load_workbook( file_path, read_only = True )
 
-			## pass data in file to AI algorithm
-			if data:
-				self.master.switch_frame( ResultFrame( self.master, data ) )
+			except openpyxl.utils.exceptions.InvalidFileException:
+				tm.showerror( "File error", "Unable to open file as XLSX file" )
+				return
 
-def process_file( input_file_path ):
-	try:
-		book = openpyxl.load_workbook( input_file_path, read_only = True )
-	except openpyxl.utils.exceptions.InvalidFileException:
-		tm.showerror( "File error", "Unable to open file as XLSX file" )
-		return []
+			## pass workbook to loading frame
+			self.master.switch_frame( Loadingframe( self.master, workbook ) )
 
-	sheet = book.active
 
-	intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
+class Loadingframe( Frame ):
+	def __init__( self, master, input_workbook ):
+		super().__init__( master )
 
-	return_array = []
+		self._workbook = input_workbook
 
-	for column in range( sheet.max_column ):
-		line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
+		self.default_label = Label( self, text = "File loading." )
+		self.default_label.pack( anchor = "nw" )
 
-		if line:
-			return_array.append( line )
+		self.pack( anchor = "nw" )
 
-	return return_array
+		master._to_do = self.process_workbook
+
+	def process_workbook( self ):
+
+		sheet = self._workbook.active
+
+		intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
+
+		data_array = []
+
+		for column in range( sheet.max_column ):
+			line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
+
+			if line:
+				data_array.append( line )
+
+		self.master.switch_frame( ResultFrame( self.master, data_array ) )
+
 
 class EnterDataframe( Frame ):
 	def __init__( self, master ):
 		super().__init__( master )
 
 		self.default_label_1 = Label( self, text = "Type in the values into each box and" )
-		self.default_label_2 = Label( self, text = "then click next data point or continue." )
+		self.default_label_2 = Label( self, text = "then click Next Data Point or Continue." )
 
 		self.time_entry = Entry( self )
 		self.value_entry = Entry( self )
@@ -139,46 +160,59 @@ class EnterDataframe( Frame ):
 		self.pack( anchor = "nw" )
 
 	def _next_clicked( self ):
-		try:
-			time_ = float( self.time_entry.get() )
-			value_ = float( self.value_entry.get() )
-		except ValueError:
-			tm.showinfo( "Input Error", "Invalid entry" )
-			return
+		time_text = self.time_entry.get()
+		value_text = self.value_entry.get()
 
-		# append data to data collected
-		self.data.update( { time_: value_ } )
+		if time_text or value_text:		# if the entries are not empty
+			try:
+				time_ = float( time_text )
+				value_ = float( value_text )
+			except ValueError:
+				tm.showinfo( "Input Error", "Invalid entry" )
+				return
 
-		# clear entrys
-		self.time_entry.delete( 0, END )
-		self.value_entry.delete( 0, END )
+			# append data to data collected
+			self.data.update( { time_: value_ } )
+
+			# clear entrys
+			self.time_entry.delete( 0, END )
+			self.value_entry.delete( 0, END )
 
 	def _continue_clicked( self ):
-		try:
-			time_ = float( self.time_entry.get() )
-			value_ = float( self.value_entry.get() )
-		except ValueError:
-			tm.showinfo( "Input Error", "Invalid entry" )
-			return
+		time_text = self.time_entry.get()
+		value_text = self.value_entry.get()
 
-		# append data to data collected
-		self.data.update( { time_: value_ } )
+		if time_text or value_text:		# if the entries are not empty
+			try:
+				time_ = float( time_text )
+				value_ = float( value_text )
+			except ValueError:
+				tm.showinfo( "Input Error", "Invalid entry" )
+				return
+
+			# append data to data collected
+			self.data.update( { time_: value_ } )
+
+		keys = list( self.data.keys() )
+		keys.sort()
+
+		# organize time and value into two ordered lists
+		data_array = [ keys, [ self.data[ index ] for index in keys ] ]
 
 		## pass data to AI algorithm
-		self.master.switch_frame( ResultFrame( self.master ) )
+		self.master.switch_frame( ResultFrame( self.master, data_array ) )
 
 
 class ResultFrame( Frame ):
 	def __init__( self, master, input_data ):
 		super().__init__( master )
 
-		self.default_label_1 = Label( self, text = "Result Frame." )
-		self.default_label_2 = Label( self, text = "Frame not implemented." )
-		self.default_label_3 = Label( self, text = "No progression." )
+		for column_index, column in enumerate( input_data ):
+			for row_index, value in enumerate( column ):
+				default_label = Label( self, text = value )
+				default_label.grid( row = row_index, column = column_index )
 
-		self.default_label_1.pack( anchor = "nw" )
-		self.default_label_2.pack( anchor = "nw" )
-		self.default_label_3.pack( anchor = "nw" )
+		#self.default_label_1.grid( row = 0, sticky = E )
 
 		self.pack( anchor = "nw" )
 

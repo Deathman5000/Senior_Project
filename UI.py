@@ -1,10 +1,11 @@
 #! /usr/bin/env python
 
 import openpyxl
-
+from typing import Iterable
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
+import threading
 
 WIDTH = 350
 HEIGHT = 460
@@ -18,10 +19,9 @@ class Application( Tk ):
 		#self.resizable( 0, 0 ) # this prevents from resizing the window
 		self._menu = TopMenu( self )
 		self._frame = None
-		self._to_do = None
 		self.switch_frame( LoginFrame( self ) )
 
-	def switch_frame( self, new_frame ):
+	def switch_frame( self, new_frame: Frame ):
 		#Destroys current frame and replaces it with a new one.
 		if self._frame is not None:
 			self._frame.destroy()
@@ -29,15 +29,12 @@ class Application( Tk ):
 		self._frame = new_frame
 		self.update()
 
-		if self._to_do:
-			do_now = self._to_do
-			self._to_do = None		# prevents doing it again
-			do_now()
-
 
 class LoginFrame( Frame ):
-	def __init__( self, master ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk ):
+
+		self._master = input_master
+		super().__init__( input_master )
 
 		self.label_username = Label( self, text = "Username:" )
 		self.label_password = Label( self, text = "Password:" )
@@ -63,7 +60,7 @@ class LoginFrame( Frame ):
 
 		global LOGGED_IN
 		LOGGED_IN = True
-		self.master.switch_frame( Choiceframe( self.master ) )
+		self._master.switch_frame( Choiceframe( self._master ) )
 
 		#if username == "admin" and password == "password":
 		#    tm.showinfo( "Login info", "admin accepted" )
@@ -72,8 +69,10 @@ class LoginFrame( Frame ):
 
 
 class Choiceframe( Frame ):
-	def __init__( self, master ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk ):
+
+		self._master = input_master
+		super().__init__( input_master )
 
 		self.enter_button = Button( self, text = "Enter Data", command = self._enter_clicked )
 		self.import_button = Button( self, text = "Import File", command = self._import_clicked )
@@ -84,7 +83,7 @@ class Choiceframe( Frame ):
 		self.pack( anchor = "nw" )
 
 	def _enter_clicked( self ):
-		self.master.switch_frame( EnterDataframe( self.master ) )
+		self._master.switch_frame( EnterDataframe( self._master ) )
 
 	def _import_clicked( self ):
 		file_path = fd.askopenfilename()
@@ -99,42 +98,50 @@ class Choiceframe( Frame ):
 				return
 
 			## pass workbook to loading frame
-			self.master.switch_frame( Loadingframe( self.master, workbook ) )
+			self._master.switch_frame( Loadingframe( self._master, "File loading.", ResultFrame, process_workbook, [ workbook ] ) )
+
+def process_workbook( input_workbook: openpyxl.Workbook, caller, target_frame: Frame ):
+
+	sheet = input_workbook.active
+
+	intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
+
+	data_array = []
+
+	for column in range( sheet.max_column ):
+		line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
+
+		if line:
+			data_array.append( line )
+
+	# waits until the loading frame that called this is completely loaded
+	while not caller._master._frame == caller:
+		pass
+
+	caller._master.switch_frame( target_frame( caller._master, data_array ) )
 
 
 class Loadingframe( Frame ):
-	def __init__( self, master, input_workbook ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk, loading_text: StringVar, target_frame: Frame, todo_function, todo_arguments ):
 
-		self._workbook = input_workbook
+		self._master = input_master
 
-		self.default_label = Label( self, text = "File loading." )
+		workbook_thread = threading.Thread( target = todo_function, args = todo_arguments + [ self, target_frame ] )
+		workbook_thread.start()
+
+		super().__init__( self._master )
+
+		self.default_label = Label( self, text = loading_text )
 		self.default_label.pack( anchor = "nw" )
 
 		self.pack( anchor = "nw" )
 
-		master._to_do = self.process_workbook
-
-	def process_workbook( self ):
-
-		sheet = self._workbook.active
-
-		intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
-
-		data_array = []
-
-		for column in range( sheet.max_column ):
-			line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
-
-			if line:
-				data_array.append( line )
-
-		self.master.switch_frame( ResultFrame( self.master, data_array ) )
-
 
 class EnterDataframe( Frame ):
-	def __init__( self, master ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk ):
+
+		self._master = input_master
+		super().__init__( input_master )
 
 		self.default_label_1 = Label( self, text = "Type in the values into each box and" )
 		self.default_label_2 = Label( self, text = "then click Next Data Point or Continue." )
@@ -197,12 +204,14 @@ class EnterDataframe( Frame ):
 		data_array = [ keys, [ self.data[ index ] for index in keys ] ]
 
 		## pass data to AI algorithm
-		self.master.switch_frame( ResultFrame( self.master, data_array ) )
+		self._master.switch_frame( ResultFrame( self._master, data_array ) )
 
 
 class ResultFrame( Frame ):
-	def __init__( self, master, input_data ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk, input_data: Iterable[ float ] ):
+
+		self._master = input_master
+		super().__init__( input_master )
 
 		for column_index, column in enumerate( input_data ):
 			for row_index, value in enumerate( column ):
@@ -215,12 +224,14 @@ class ResultFrame( Frame ):
 
 
 class TopMenu( Menu ):
-	def __init__( self, master ):
-		super().__init__( master )
+	def __init__( self, input_master: Tk ):
 
-		master.configure( menu = self )
+		self._master = input_master
+		super().__init__( input_master )
 
-		self.sub_menu = Menu( master, tearoff = 0 )
+		self._master.configure( menu = self )
+
+		self.sub_menu = Menu( self._master, tearoff = 0 )
 		self.add_cascade( menu = self.sub_menu, label = "File" )
 		self.sub_menu.add_command( label = "Log out", command = self._Log_out_selected )
 		self.sub_menu.add_command( label = "Reset", command = self._Reset_selected )
@@ -231,21 +242,21 @@ class TopMenu( Menu ):
 
 		if( LOGGED_IN ):
 			LOGGED_IN = False
-			self.master.switch_frame( LoginFrame( self.master ) )
+			self._master.switch_frame( LoginFrame( self._master ) )
 
 	def _Reset_selected( self ):
 		global LOGGED_IN
 
 		if( LOGGED_IN ):
-			self.master.switch_frame( Choiceframe( self.master ) )
+			self._master.switch_frame( Choiceframe( self._master ) )
 
 	def _Exit_selected( self ):
 		# log out for consistancy
 		global LOGGED_IN
 		LOGGED_IN = False
 
-		self.master.destroy()
-		self.master = None
+		self._master.destroy()
+		self._master = None
 		# this exits the program
 
 

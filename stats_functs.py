@@ -1,9 +1,12 @@
-#! /usr/bin/env python
 
-# prototype statistical functions
+# statistical functions
 
+from typing import Iterable
 from math import sqrt
 from statistics import median
+from scipy import fftpack
+from scipy import signal
+
 
 """ pages 5 - 7
 TP = true positives
@@ -17,233 +20,214 @@ Recall = TP/( TP + FN )
 F1-Score = ( 2 * Recall * Precision )/( Recall + Precision )
 """
 
-data_set = sorted([
-696.8987182985,
-471.1350598647,
-324.054671594,
-227.3596287053,
-162.8743598915,
-119.0172373712,
-88.2980104025,
-65.9385616958,
-48.9297979596,
-35.3218339926,
-23.8612602652,
-13.7750123874,
-4.5675360336,
--4.0660776852,
--12.3194050616,
--20.3109362611,
--28.1080348301,
--35.7466911449,
--43.2445664624,
--43.2445664624,
--918.0927253654,
--603.8019188541,
--403.9345119291,
--276.9929769909,
--196.7915469687,
--146.4100514973,
--115.103477139,
--95.9043688976,
--84.3831135399,
--77.7238281059,
--74.0826582225,
--72.3001896803,
--71.642478235,
--71.6468291374,
--71.9975479675,
--72.4954960352,
--73.0283564505,
--73.5261703518,
--73.9379638073,
--73.9379638073,
--379.5969524832,
--266.6337665525,
--193.8157746761,
--146.5443261248,
--115.6529939904,
--95.1454830897,
--81.2594703983,
--71.5814256426,
--64.5280069567,
--59.1024276608,
--54.6923367551,
--50.8978648814,
--47.4512228877,
--44.1878748671,
--41.0178818281,
--37.8862538845,
--34.7550485943,
--31.6033181794,
--28.4163639159,
--28.4163639159,
-854.5084041241,
-525.0924501367,
-314.1456803127,
-178.9895393744,
-92.435738477,
-37.052354996,
-1.630494746,
--20.9521921253,
--35.3348596582,
--44.4316441753,
--50.106614209,
--53.5795451432,
--55.6187368412,
--56.6961786132,
--57.1205521382,
--57.0840880217,
--56.7280214307,
--56.126694454,
--55.3234504655,
--55.3234504655,
-156.9135427158,
-78.5538497047,
-28.5809081132,
--3.295738291,
--23.5029282433,
--36.1846065899,
--44.0257035087,
--48.7115579424,
--51.3127582339,
--52.5586400426,
--52.8972176089,
--52.6014567944,
--51.8568837232,
--50.7816516961,
--49.4636231137,
--47.9515884621,
--46.2746073532,
--44.4549146406,
--42.5081669594,
--42.5081669594 ])
+
+def Statistical_Features( input_list: Iterable[ float ], time_start: float, time_end: float ):
+
+	"""
+	div-zero liabilities
+		Length
+		1 / value for any value in input_list
+		Sums[ 0 ]
+		Sums[ 1 ]
+		Sums[ 2 ]
+		Sums[ 5 ]
+		Frequency_Sums[ 0 ]
+		sum( [ P1[ index ] for index in signal.find_peaks( P1 )[ 0 ] ] )
+	"""
+
+	Length = len( input_list )
+	durration = time_end - time_start
+
+	# initial error catch
+	if durration == 0 or Length == 0:
+		return [ 0 ] * 20
+
+	frequency_length = ( 1 + Length ) // 2
+	
+	sampling_frequency = Length / ( time_end - time_start )
+	P1 = [ abs( value / Length ) for value in fftpack.fft( input_list )[ : frequency_length ] ]
+	
+	for index in range( 1, len( P1 ) - 1 ):
+		P1[ index ] *= 2	
+	
+	frequencies_list = [ sampling_frequency * value / Length for value in range( frequency_length ) ]
+	
+
+	input_list = sorted( input_list )
+
+	Median = median( input_list )
+
+	# F2
+	def mean( input_list_ ):
+		length_ = len( input_list_ )
+
+		if length_ == 0:
+			return 0
+
+		return sum( input_list_ ) / length_
+
+	Mean = mean( input_list )
+
+	Sums = [ 0 ] * 8
+
+	Harmonic_Zero = False
+
+	# combined sum loops									Used in:
+	for value in input_list:
+		temp_difference = value - Mean
+
+		Sums[ 0 ] += value * value						# Root_Mean_Square, ( Crest_Factor, Peak2RMS, Shape_Factor )
+
+		if value == 0:
+			Harmonic_Zero = True
+		else:
+			Sums[ 1 ] += 1 / value						# Harmonic_Mean
+
+		Sums[ 2 ] += abs( value )						# Shape_Factor
+		Sums[ 3 ] += abs( temp_difference )				# Mean_Absolute_Deviation
+		Sums[ 4 ] += abs( value - Median )				# Median_Absolute_Deviation
+
+		temp_value = temp_difference * temp_difference
+
+		Sums[ 5 ] += temp_value							# Variance, Skewness, ( Kurtosis, Standard_Deviation )
+
+		temp_value *= temp_difference
+
+		Sums[ 6 ] += temp_value							# Skewness
+		Sums[ 7 ] += temp_value * temp_difference		# Kurtosis
 
 
-# If a datapoint is within OUTLIER_CRITERIA * IQR of the median
-# then it is not an outlier
-OUTLIER_CRITERIA = 1.5; # lower excludes more
+	# F0
+	Maximum_Value = input_list[ -1 ]
 
-# F0
-# Maximum value
-# max x(n)
+	# F1
+	Minimum_Value = input_list[ 0 ]
 
-# F1
-# Minimum value
-# min x(n)
 
-# F2
-def Mean( input_list ):
-	return sum( input_list ) / len( input_list )
+	# F3
+		# F0 - F1
+	Peak_to_Peak = Maximum_Value - Minimum_Value
 
-# F3
-# F0 - F1
-def Peak_to_peak( input_list ):
-	return max( input_list ) - min( input_list )
+	# F4
+	if Harmonic_Zero:
+		Harmonic_Mean = 0
+	elif Sums[ 1 ] == 0:
+		Harmonic_Mean = float( 'inf' )
+	else:
+		Harmonic_Mean = Length / Sums[ 1 ]
 
-# F4
-def Harmonic_mean( input_list ):
-	return 1 / Mean( [ 1 / value for value in input_list ] )
+	# F5
+		# Mean excluding outliers (10% trimmed mean)
 
-# F5
-# Mean excluding outliers
-def Trimmed_mean( input_list ):
-	l   = len( data_set )
-	mid = median( data_set )
-	q1  = median( data_set[ :l // 2 ] )
-	q3  = median( data_set[ l // 2 + 1: ] )
-	iqr = q3 - q1
-	return Mean( [ val for val in input_list if not abs( val - mid ) > OUTLIER_CRITERIA * iqr ] )
+		# If a data point is within OUTLIER_CRITERIA * IQR of the median
+		# then it is not an outlier
+	OUTLIER_CRITERIA = 1.5 # lower excludes more
 
-# F6
-def Variance( input_list ):
-	ave = Mean( input_list )
-	return Mean( [ (value - ave)**2 for value in input_list ] )
+	first_quartile = median( input_list[ :Length // 2 ] )
+	last_quartile = median( input_list[ Length // 2 + 1: ] )
+	inter_quartile_range = last_quartile - first_quartile
 
-# F7
-def Standard_deviation( input_list ):
-	return sqrt( Variance( input_list ) )
+	Trimmed_Mean = mean( [ value for value in input_list \
+		if not abs( value - Median ) > OUTLIER_CRITERIA * inter_quartile_range ] )
 
-# F8
-def Mean_absolute_deviation( input_list ):
-	ave = Mean( input_list )
-	return Mean( [ abs( value - ave ) for value in input_list ] )
+	# F6
+	Variance = Sums[ 5 ] / Length
 
-# F9
-def Median_absolute_deviation( input_list ):
-	mid = median( input_list )
-	return Mean( [ abs( value - mid ) for value in input_list ] )
+	# F7
+	Standard_Deviation = sqrt( Variance )
 
-# F10
-def Crest_Factor( input_list ):
-	return max( input_list ) / RMS( input_list )
+	# F8
+	Mean_Absolute_Deviation = Sums[ 3 ] / Length
 
-# F11
-def Peak2RMS( input_list ):
-	return max( abs( value ) for value in input_list ) / RMS( input_list )
+	# F9
+	Median_Absolute_Deviation = Sums[ 4 ] / Length
 
-# F12
-def Skewness( input_list ):
-	ave = Mean( input_list )
-	return sum( [ (value - ave)**3 for value in input_list ] ) \
-         / sum( [ (value - ave)**2 for value in input_list ] )
 
-# F13
-def Kurtosis( input_list ):
-	ave = Mean( input_list )
-	return Mean( [ (value - ave)**4 for value in input_list ] ) \
-           / ( Variance( input_list )**2 )
+	# F15
+	Root_Mean_Square = sqrt( Sums[ 0 ] / Length )
 
-# F14
-def Shape_Factor( input_list ):
-	return RMS( input_list ) / Mean( [ abs( value ) for value in input_list ] )
 
-# F15
-def RMS( input_list ):
-	return sqrt( Mean( [ value * value for value in input_list ] ) )
+	# F10
+	if Root_Mean_Square == 0:
+		Crest_Factor = float( 'inf' )
+	else:
+		Crest_Factor = Maximum_Value / Root_Mean_Square
 
-# F16
-def Mean_Frequency( input_list ):
-	pass
+	# F11
+		# Peak_to_Peak_Root_Mean_Square
+	if Root_Mean_Square == 0:
+		Peak2RMS = float( 'inf' )
+	else:
+		Peak2RMS = max( abs( Minimum_Value ), abs( Maximum_Value ) ) / Root_Mean_Square
 
-# F17
-def Frequency_Center( input_list ):
-	pass
+	# F12
+	if Sums[ 5 ] == 0:
+		Skewness = 0
+	else:
+		Skewness = Sums[ 6 ] / Sums[ 5 ]
 
-# F18
-def RMS_Frequency( input_list ):
-	pass
+	# F13
+	if Sums[ 5 ] == 0:
+		Kurtosis = float( 'inf' )
+	else:
+		Kurtosis = Sums[ 7 ] / ( Length * Variance ** 2 )
 
-# F19
-# (FM0)
-def Figure_of_merit( input_list ):
-	pass
-	#return Peak_to_peak( input_list ) / sum( input_list )
+	# F14
+	if Sums[ 2 ] == 0:
+		Shape_Factor = float( 'inf' )
+	else:
+		Shape_Factor = Root_Mean_Square * Length / Sums[ 2 ]
 
-function_list = [
-max,
-min,
-Mean,
-Peak_to_peak,
-Harmonic_mean,
-Trimmed_mean,
-Variance,
-Standard_deviation,
-Mean_absolute_deviation,
-Median_absolute_deviation,
-Crest_Factor,
-Peak2RMS,
-Skewness,
-Kurtosis,
-Shape_Factor,
-RMS,
-Mean_Frequency,
-Frequency_Center,
-RMS_Frequency,
-Figure_of_merit ]
 
-max_string = max( len( funct.__name__ ) for funct in function_list )
+	Frequency_Sums = [ 0 ] * 3
 
-for count, funct in enumerate( function_list ):
-	output = "F{:<2} {:" + str( max_string ) + "}\t {}"
-	print( output.format( count, funct.__name__, funct( data_set ) ) )
+	for value, frequency in zip( P1, frequencies_list ):
+		temp_value = value * frequency
+		Frequency_Sums[ 0 ] += value
+		Frequency_Sums[ 1 ] += temp_value
+		Frequency_Sums[ 2 ] += temp_value * frequency
+
+	# F17
+	Mean_Frequency = Frequency_Sums[ 0 ] / frequency_length
+
+	# F18
+	if Frequency_Sums[ 0 ] == 0:
+		Frequency_Center = float( 'inf' )
+	else:
+		Frequency_Center = Frequency_Sums[ 1 ] / Frequency_Sums[ 0 ]
+
+	# F19
+	if Frequency_Sums[ 0 ] == 0:
+		Root_Mean_Square_Frequency = float( 'inf' )
+	else:
+		Root_Mean_Square_Frequency = sqrt( Frequency_Sums[ 2 ] / Frequency_Sums[ 0 ] )
+
+	# F20
+	peaks_sum = sum( [ P1[ index ] for index in signal.find_peaks( P1 )[ 0 ] ] )
+
+	if peaks_sum == 0:
+		Figure_of_Merit = float( 'inf' )
+	else:
+		Figure_of_Merit = ( Maximum_Value - Mean ) / peaks_sum
+
+
+	return [ Maximum_Value,
+			Minimum_Value,
+			Mean,
+			Peak_to_Peak,
+			Harmonic_Mean,
+			Trimmed_Mean,
+			Variance,
+			Standard_Deviation,
+			Mean_Absolute_Deviation,
+			Median_Absolute_Deviation,
+			Crest_Factor,
+			Peak2RMS,
+			Skewness,
+			Kurtosis,
+			Shape_Factor,
+			Root_Mean_Square,
+			Mean_Frequency,
+			Frequency_Center,
+			Root_Mean_Square_Frequency,
+			Figure_of_Merit ]

@@ -1,11 +1,16 @@
 #! /usr/bin/env python
 
+import sys
+sys.path.append('/home/nb1003151/openpyxl-2.6.0')
+
+import openpyxl
+
+import hashlib
+import binascii
+import compare
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
-import compare
-import hashlib
-import binascii
 
 WIDTH = 350
 HEIGHT = 460
@@ -19,16 +24,21 @@ class Application( Tk ):
 		#self.resizable( 0, 0 ) # this prevents from resizing the window
 		self._menu = TopMenu( self )
 		self._frame = None
-		self.switch_frame( LoginFrame )
+		self._to_do = None
+		self.switch_frame( LoginFrame( self ) )
 
-	def switch_frame( self, frame_class ):
+	def switch_frame( self, new_frame ):
 		#Destroys current frame and replaces it with a new one.
-		new_frame = frame_class( self )
-
 		if self._frame is not None:
 			self._frame.destroy()
 
 		self._frame = new_frame
+		self.update()
+
+		if self._to_do:
+			do_now = self._to_do
+			self._to_do = None;		# prevents doing it again
+			do_now();
 
 
 class LoginFrame( Frame ):
@@ -51,9 +61,9 @@ class LoginFrame( Frame ):
 
 		self.pack( anchor = "nw" )
 
-	def encrypt(self, password):# encrypt by Timothy Moore
+	def encrypt(self, password):
 		password = binascii.a2b_qp(password)
-		en = binascii.hexlify(hashlib.pbkdf2_hmac('sha1', password, b'kYt20AgK9e3MdRGivNqT', 100000)).decode("utf-8")
+		en = hashlib.pbkdf2_hmac('sha1', password, b'kYt20AgK9e3MdRGivNqT', 100000)
 		return en
 
 	def _login_clicked( self ):
@@ -65,7 +75,7 @@ class LoginFrame( Frame ):
 			tm.showinfo( "Login info","logged in ")
 			global LOGGED_IN
 			LOGGED_IN = True
-			self.master.switch_frame( Choiceframe )
+			self.master.switch_frame(Choiceframe(self.master))
 		else:
 			tm.showinfo( "Login info", "failed." )
 
@@ -88,16 +98,52 @@ class Choiceframe( Frame ):
 		self.pack( anchor = "nw" )
 
 	def _enter_clicked( self ):
-		self.master.switch_frame( EnterDataframe )
+		self.master.switch_frame( EnterDataframe( self.master ) )
 
 	def _import_clicked( self ):
 		file_path = fd.askopenfilename()
 
-		if file_path:
-			#check file type
-			#pass file to file processing
-			#pass data in file to AI algorithm
-			self.master.switch_frame( ResultFrame )
+		if file_path: # if a file was selected
+			try:
+				# Open file and load workbook
+				workbook = openpyxl.load_workbook( file_path, read_only = True )
+
+			except openpyxl.utils.exceptions.InvalidFileException:
+				tm.showerror( "File error", "Unable to open file as XLSX file" )
+				return
+
+			## pass workbook to loading frame
+			self.master.switch_frame( Loadingframe( self.master, workbook ) )
+
+
+class Loadingframe( Frame ):
+	def __init__( self, master, input_workbook ):
+		super().__init__( master )
+
+		self._workbook = input_workbook
+
+		self.default_label = Label( self, text = "File loading." )
+		self.default_label.pack( anchor = "nw" )
+
+		self.pack( anchor = "nw" )
+
+		master._to_do = self.process_workbook
+
+	def process_workbook( self ):
+
+		sheet = self._workbook.active
+
+		intermediate_array = [ column for column in sheet.iter_rows( min_row = 1, max_col = sheet.max_column, max_row = sheet.max_row, values_only = True ) ]
+
+		data_array = []
+
+		for column in range( sheet.max_column ):
+			line = [ row[ column ] for row in intermediate_array if isinstance( row[ column ], float ) ]
+
+			if line:
+				data_array.append( line )
+
+		self.master.switch_frame( ResultFrame( self.master, data_array ) )
 
 
 class EnterDataframe( Frame ):
@@ -105,7 +151,7 @@ class EnterDataframe( Frame ):
 		super().__init__( master )
 
 		self.default_label_1 = Label( self, text = "Type in the values into each box and" )
-		self.default_label_2 = Label( self, text = "then click next data point or continue." )
+		self.default_label_2 = Label( self, text = "then click Next Data Point or Continue." )
 
 		self.time_entry = Entry( self )
 		self.value_entry = Entry( self )
@@ -120,29 +166,64 @@ class EnterDataframe( Frame ):
 		self.next_button.grid( row = 3, sticky = E )
 		self.continue_button.grid( row = 3, column = 1 )
 
+		self.data = {}
+
 		self.pack( anchor = "nw" )
 
 	def _next_clicked( self ):
-		# append data to data collected
-		tm.showinfo( "Button info", "Button not implemented.\nNo action." )
+		time_text = self.time_entry.get()
+		value_text = self.value_entry.get()
+
+		if time_text or value_text:		# if the entries are not empty
+			try:
+				time_ = float( time_text )
+				value_ = float( value_text )
+			except ValueError:
+				tm.showinfo( "Input Error", "Invalid entry" )
+				return
+
+			# append data to data collected
+			self.data.update( { time_: value_ } )
+
+			# clear entrys
+			self.time_entry.delete( 0, END )
+			self.value_entry.delete( 0, END )
 
 	def _continue_clicked( self ):
-		# append data to data collected
-		#pass data to AI algorithm
-		self.master.switch_frame( ResultFrame )
+		time_text = self.time_entry.get()
+		value_text = self.value_entry.get()
+
+		if time_text or value_text:		# if the entries are not empty
+			try:
+				time_ = float( time_text )
+				value_ = float( value_text )
+			except ValueError:
+				tm.showinfo( "Input Error", "Invalid entry" )
+				return
+
+			# append data to data collected
+			self.data.update( { time_: value_ } )
+
+		keys = list( self.data.keys() )
+		keys.sort()
+
+		# organize time and value into two ordered lists
+		data_array = [ keys, [ self.data[ index ] for index in keys ] ]
+
+		## pass data to AI algorithm
+		self.master.switch_frame( ResultFrame( self.master, data_array ) )
 
 
 class ResultFrame( Frame ):
-	def __init__( self, master ):
+	def __init__( self, master, input_data ):
 		super().__init__( master )
 
-		self.default_label_1 = Label( self, text = "Result Frame." )
-		self.default_label_2 = Label( self, text = "Frame not implemented." )
-		self.default_label_3 = Label( self, text = "No progression." )
+		for column_index, column in enumerate( input_data ):
+			for row_index, value in enumerate( column ):
+				default_label = Label( self, text = value )
+				default_label.grid( row = row_index, column = column_index )
 
-		self.default_label_1.pack( anchor = "nw" )
-		self.default_label_2.pack( anchor = "nw" )
-		self.default_label_3.pack( anchor = "nw" )
+		#self.default_label_1.grid( row = 0, sticky = E )
 
 		self.pack( anchor = "nw" )
 
@@ -164,15 +245,19 @@ class TopMenu( Menu ):
 
 		if( LOGGED_IN ):
 			LOGGED_IN = False
-			self.master.switch_frame( LoginFrame )
+			self.master.switch_frame( LoginFrame( self.master ) )
 
-	def _Reset_selected(self):
+	def _Reset_selected( self ):
 		global LOGGED_IN
 
 		if( LOGGED_IN ):
-			self.master.switch_frame( Choiceframe )
+			self.master.switch_frame( Choiceframe( self.master ) )
 
 	def _Exit_selected( self ):
+		# log out for consistancy
+		global LOGGED_IN
+		LOGGED_IN = False
+
 		self.master.destroy()
 		self.master = None
 		# this exits the program
@@ -180,4 +265,4 @@ class TopMenu( Menu ):
 
 if __name__ == "__main__":
     app = Application()
-    app.mainloop()
+app.mainloop()

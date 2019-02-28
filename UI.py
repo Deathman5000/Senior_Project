@@ -1,8 +1,5 @@
 #! /usr/bin/env python
 
-import sys
-sys.path.append('/home/nb1003151/openpyxl-2.6.0')
-
 import openpyxl
 
 from tkinter import *
@@ -34,8 +31,8 @@ class Application( Tk ):
 
 		if self._to_do:
 			do_now = self._to_do
-			self._to_do = None;		# prevents doing it again
-			do_now();
+			self._to_do = None		# prevents doing it again
+			do_now()
 
 
 class LoginFrame( Frame ):
@@ -253,5 +250,5 @@ class TopMenu( Menu ):
 
 
 if __name__ == "__main__":
-    app = Application()
-    app.mainloop()
+	app = Application()
+	app.mainloop()

@@ -1,10 +1,13 @@
 #! /usr/bin/env python
-
 import openpyxl
 
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
+
+import hashlib
+import binascii
+import compare
 
 WIDTH = 350
 HEIGHT = 460
@@ -12,7 +15,7 @@ LOGGED_IN = False
 
 class Application( Tk ):
 	def __init__( self ):
-		super().__init__() 
+		super().__init__()
 		self.title( "GeLP" )
 		#self.geometry( '{}x{}'.format( WIDTH, HEIGHT) )
 		#self.resizable( 0, 0 ) # this prevents from resizing the window
@@ -55,20 +58,23 @@ class LoginFrame( Frame ):
 
 		self.pack( anchor = "nw" )
 
-	def _login_clicked( self ):
+	def encrypt(self, password):
+		password = binascii.a2b_qp(password)
+		en = hashlib.pbkdf2_hmac('sha1', password, b'kYt20AgK9e3MdRGivNqT', 100000)
+		return en
+
+	def _login_clicked(self):
 		username = self.entry_username.get()
 		password = self.entry_password.get()
-		
-		tm.showinfo( "Login info", "Login not implemented.\nAccess unrestricted." )
 
-		global LOGGED_IN
-		LOGGED_IN = True
-		self.master.switch_frame( Choiceframe( self.master ) )
-
-		#if username == "admin" and password == "password":
-		#    tm.showinfo( "Login info", "admin accepted" )
-		#else:
-		#    tm.showerror( "Login error", "Incorrect username" )
+		password = self.encrypt(password)
+		if (compare.compare(username, password)):
+			tm.showinfo("Login info", "logged in ")
+			global LOGGED_IN
+			LOGGED_IN = True
+			self.master.switch_frame(Choiceframe(self.master))
+		else:
+			tm.showinfo("Login info", "failed.")
 
 
 class Choiceframe( Frame ):
@@ -251,4 +257,4 @@ class TopMenu( Menu ):
 
 if __name__ == "__main__":
 	app = Application()
-	app.mainloop()
+app.mainloop()

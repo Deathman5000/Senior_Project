@@ -1,3 +1,2 @@
-example 'user' 'password'
-'test' 'master'
-'tester' 'test'
+'user' 'password'
+'master' 'master'

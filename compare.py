@@ -33,3 +33,4 @@ def compare(username, password):
   else:
     return False
 """
+

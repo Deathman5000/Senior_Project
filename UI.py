@@ -65,12 +65,6 @@ class LoginFrame(Frame):
 		username = self.entry_username.get()
 		password = self.entry_password.get()
 
-		tm.showinfo("Login info", "Login not implemented.\nAccess unrestricted.")
-
-		global LOGGED_IN
-		LOGGED_IN = True
-		self._master.switch_frame(Choiceframe(self._master))
-
 		password = self.encrypt(password)
 		if (compare.compare(username, password)):
 			tm.showinfo("Login info", "logged in ")

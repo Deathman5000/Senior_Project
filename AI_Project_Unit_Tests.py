@@ -1,7 +1,9 @@
+# AI_Project_Unit_Tests.py
+
 import unittest
 import sys
 from unittest import TestCase
-from stats_functs import Statistical_Features
+import AI_Manager
 
 from math import sqrt
 from statistics import median
@@ -240,7 +242,7 @@ def Stat_Features_uncondensed( input_list, time_start, time_end ):
 	Figure_of_Merit = ( max( input_list ) - mean( input_list ) )\
 					  / sum( [ P1[ index ] for index in signal.find_peaks( P1 )[ 0 ] ] )
 
-	return [ Maximum_Value,
+	features = [ Maximum_Value,
 			Minimum_Value,
 			Mean,
 			Peak_to_Peak,
@@ -261,25 +263,31 @@ def Stat_Features_uncondensed( input_list, time_start, time_end ):
 			Root_Mean_Square_Frequency,
 			Figure_of_Merit ]
 
+	return [ features[ index ] for index in
+		( 10, 18, 11, 12, 16, 1, 13, 17, 9, 2, 14, 3, 5, 15, 4, 6, 0, 8, 7, 19 ) ]
+
 class Test_Stat_Features( TestCase ):
+	#SFfe
 	def test_Stat_Features_finishes_edge( self ):
 		# These just need to run without error
-		self.assertEqual( len( Statistical_Features( [ 1, 1, 1 ], 1, 2 ) ), 20 )
-		self.assertEqual( len( Statistical_Features( [ -1, 0, 1 ], 1, 2 ) ), 20 )
-		self.assertEqual( len( Statistical_Features( [ 0, 0, 0 ], 1, 2 ) ), 20 )
+		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  1, 1, 1 ], 1, 2 ) ), 20 )
+		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [ -1, 0, 1 ], 1, 2 ) ), 20 )
+		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  0, 0, 0 ], 1, 2 ) ), 20 )
 
+	#SFdz
 	def test_Stat_Features_defaults_to_zero( self ):
 		# These handle error cases and give a default return list
-		self.assertEqual( Statistical_Features( [        ], 1, 2 ), [ 0 ] * 20 )
-		self.assertEqual( Statistical_Features( [ 1, 2, 3 ], 1, 1 ), [ 0 ] * 20 )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [        ], 1, 2 ), [ 0 ] * 20 )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 1, 2, 3 ], 1, 1 ), [ 0 ] * 20 )
 
+	#SFce
 	def test_Stat_Features_uncondensed_equality( self ):
 		max_string = max( len( name ) for name in function_list )
 		output = "F{:<2} {:" + str( max_string ) + "}\t {:<20}\t {}"
 		print( file = sys.stderr )
 
-		for count, ( left, right ) in enumerate( zip( Statistical_Features( data_set, *time_values ),
-													  Stat_Features_uncondensed( data_set, *time_values ) ) ):
+		for count, ( left, right ) in enumerate( zip( AI_Manager.AI_Manager.__Statistical_Features__( data_set, *time_values ),
+													  		Stat_Features_uncondensed( data_set, *time_values ) ) ):
 			print( output.format( count, function_list[ count ], left, right ), file = sys.stderr )
 			self.assertAlmostEqual( left, right, msg = function_list[ count ] )
 

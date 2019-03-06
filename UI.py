@@ -1,14 +1,15 @@
-#! /usr/bin/env python
+# UI.py
+
 import openpyxl
-from typing import Iterable
+from typing import List
 from tkinter import *
 import tkinter.messagebox as tm
 import tkinter.filedialog as fd
 import threading
-
 import hashlib
 import binascii
 import compare
+import AI_Manager
 
 WIDTH = 350
 HEIGHT = 460
@@ -105,23 +106,11 @@ class Choiceframe(Frame):
 				return
 
 			## pass workbook to loading frame
-			self._master.switch_frame(
-				Loadingframe(self._master, "File loading.", ResultFrame, process_workbook, [workbook]))
+			self._master.switch_frame( Loadingframe( self._master, "File loading.", ResultFrame, subprocess_workbook, [ workbook ] ) )
 
+def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame, target_frame: Frame ):
 
-def process_workbook(input_workbook: openpyxl.Workbook, caller, target_frame: Frame):
-	sheet = input_workbook.active
-
-	intermediate_array = [column for column in
-						  sheet.iter_rows(min_row=1, max_col=sheet.max_column, max_row=sheet.max_row, values_only=True)]
-
-	data_array = []
-
-	for column in range(sheet.max_column):
-		line = [row[column] for row in intermediate_array if isinstance(row[column], float)]
-
-		if line:
-			data_array.append(line)
+	data_array = AI_Manager.process_workbook( input_workbook )
 
 	# waits until the loading frame that called this is completely loaded
 	while not caller._master._frame == caller:
@@ -205,7 +194,11 @@ class EnterDataframe(Frame):
 			# append data to data collected
 			self.data.update({time_: value_})
 
-		keys = list(self.data.keys())
+		# continue only if data is not empty
+		if self.data == {}:
+			return
+
+		keys = list( self.data.keys() )
 		keys.sort()
 
 		# organize time and value into two ordered lists
@@ -215,8 +208,8 @@ class EnterDataframe(Frame):
 		self._master.switch_frame(ResultFrame(self._master, data_array))
 
 
-class ResultFrame(Frame):
-	def __init__(self, input_master: Tk, input_data: Iterable[float]):
+class ResultFrame( Frame ):
+	def __init__( self, input_master: Tk, input_data: List[ float ] ):
 
 		self._master = input_master
 		super().__init__(input_master)

@@ -283,6 +283,5 @@ class Test_Stat_Features( TestCase ):
 			print( output.format( count, function_list[ count ], left, right ), file = sys.stderr )
 			self.assertAlmostEqual( left, right, msg = function_list[ count ] )
 
-
 if __name__ == '__main__':
 	unittest.main()

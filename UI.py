@@ -15,7 +15,10 @@ WIDTH = 350
 HEIGHT = 460
 LOGGED_IN = False
 
-
+"""
+The window manager of the program
+Every frame will exist inside this one
+"""
 class Application(Tk):
 	def __init__(self):
 		super().__init__()
@@ -34,7 +37,11 @@ class Application(Tk):
 		self._frame = new_frame
 		self.update()
 
-
+"""
+The first frame shown.
+This frame has fields to enter a user name and password
+	and a button to login.
+"""
 class LoginFrame(Frame):
 	def __init__(self, input_master: Tk):
 
@@ -75,7 +82,10 @@ class LoginFrame(Frame):
 		else:
 			tm.showinfo("Login info", "failed.")
 
-
+"""
+Displayed after the user logs in.
+Two buttons; to enter data manually, or to import from a file
+"""
 class Choiceframe(Frame):
 	def __init__(self, input_master: Tk):
 
@@ -108,8 +118,11 @@ class Choiceframe(Frame):
 			## pass workbook to loading frame
 			self._master.switch_frame( Loadingframe( self._master, "File loading.", ResultFrame, subprocess_workbook, [ workbook ] ) )
 
+"""
+This function passes a workbook to process_workbook and receives a 2D list
+It then merges threads back to the UI
+"""
 def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame, target_frame: Frame ):
-
 	data_array = AI_Manager.process_workbook( input_workbook )
 
 	# waits until the loading frame that called this is completely loaded
@@ -118,7 +131,10 @@ def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame, targe
 
 	caller._master.switch_frame(target_frame(caller._master, data_array))
 
-
+"""
+This special frame only displays a given string while
+	an important process is working in the background.
+"""
 class Loadingframe(Frame):
 	def __init__(self, input_master: Tk, loading_text: StringVar, target_frame: Frame, todo_function, todo_arguments):
 		self._master = input_master
@@ -133,7 +149,11 @@ class Loadingframe(Frame):
 
 		self.pack(anchor="nw")
 
-
+"""
+This frame is where the user can enter in data
+It has two fields for data and two button;
+	to enter more data, or to process what is already entered
+"""
 class EnterDataframe(Frame):
 	def __init__(self, input_master: Tk):
 
@@ -207,7 +227,10 @@ class EnterDataframe(Frame):
 		## pass data to AI algorithm
 		self._master.switch_frame(ResultFrame(self._master, data_array))
 
-
+"""
+This is were the result is displayed after the AI has calculated it.
+	>>>It has not been implemented yet<<<
+"""
 class ResultFrame( Frame ):
 	def __init__( self, input_master: Tk, input_data: List[ float ] ):
 
@@ -223,7 +246,10 @@ class ResultFrame( Frame ):
 
 		self.pack(anchor="nw")
 
-
+"""
+A drop down menu that is always at the top
+Used to reset, logout, or exit.
+"""
 class TopMenu(Menu):
 	def __init__(self, input_master: Tk):
 
@@ -263,4 +289,4 @@ class TopMenu(Menu):
 
 if __name__ == "__main__":
 	app = Application()
-app.mainloop()
+	app.mainloop()

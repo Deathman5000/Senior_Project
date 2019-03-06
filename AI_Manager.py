@@ -9,7 +9,9 @@ from scipy import fftpack
 from scipy import signal
 import threading
 
-
+"""
+This function loads the xl file given into a 2D list
+"""
 def process_workbook( input_workbook: openpyxl.Workbook ):
 
 	sheet = input_workbook.active
@@ -26,11 +28,15 @@ def process_workbook( input_workbook: openpyxl.Workbook ):
 
 	return return_data
 
+"""
+This class loads and runs each AI.
+"""
 class AI_Manager:
 
 	def __init__( self ):
 		self.__feature_list__ = None
 		self.__restraint__ = 20
+		# VVV This set needs refactoring VVV
 		self.__AIs__ = [] ## none thus far
 
 	def set_restraint( self, input_value: int ):
@@ -40,6 +46,10 @@ class AI_Manager:
 	def set_features( self, input_list: List[ float ], time_start: float, time_end: float ):
 		self.__feature_list__ = self.__Statistical_Features__( input_list, time_start, time_end )
 
+	"""
+	This function automates the getting a result from each AI from a set of lists.
+	A set of results is returned to be analyzed
+	"""
 	def Test_AIs( self, input_list: List[ List[ List[ float ] ] ], expected_result_list: List[ List[ float ] ] ):
 
 		Precision_Stats = {}
@@ -58,12 +68,16 @@ class AI_Manager:
 				test_feature_list = self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ]
 
 				for ai in self.__AIs__:
+					# 	VVV This function needs refactoring VVV
 					test_result = ai.AI_result_function( test_feature_list )
 
 					Precision_Stats[ ai.__class__.__name__ ][ expected_result ][ test_result ] += 1
 
 		return Precision_Stats
 
+	"""
+	This function automates and runs concurrently the training function for each AI
+	"""
 	def Train_AIs( self, input_list: List[ List[ List[ float ] ] ], expected_result_list: List[ List[ float ] ]  ):
 
 		for _2D_gear_list, _2D_expected_result in zip( input_list, expected_result_list ):
@@ -72,6 +86,7 @@ class AI_Manager:
 
 			test_feature_list = [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
+			# 									VVV This function needs refactoring VVV
 			ai_threads = [ threading.Thread( target = ai.AI_training_function, args = ( test_feature_list, _2D_expected_result ) ) for ai in self.__AIs__ ]
 
 			for ai_thread in ai_threads:
@@ -89,8 +104,13 @@ class AI_Manager:
 		# determine AI to use
 
 		# get result from AI
-		return AI_function( self.__feature_list__[ : self.__restraint__ ] )
+		# VVV This function needs refactoring VVV
+		return AI_result_function( self.__feature_list__[ : self.__restraint__ ] )
 
+	"""
+	This function gets the statistical features of the acceleration data given to it.
+	The output is a list of 20 length.
+	"""
 	@staticmethod
 	def __Statistical_Features__( input_list: List[ float ], time_start: float, time_end: float ):
 
@@ -281,31 +301,30 @@ class AI_Manager:
 		else:
 			Figure_of_Merit = ( Maximum_Value - Mean ) / peaks_sum
 
+		return [ Crest_Factor,				# 10
+				Root_Mean_Square_Frequency,	# 18
+				Peak2RMS,					# 11
+				Skewness,					# 12
+				Mean_Frequency,				# 16
+				Minimum_Value,				#  1
+				Kurtosis,					# 13
+				Frequency_Center,			# 17
+				Median_Absolute_Deviation,	#  9
+				Mean,						#  2
+				Shape_Factor,				# 14
+				Peak_to_Peak,				#  3
+				Trimmed_Mean,				#  5
+				Root_Mean_Square,			# 15
+				Harmonic_Mean,				#  4
+				Variance,					#  6
+				Maximum_Value,				#  0
+				Mean_Absolute_Deviation,	#  8
+				Standard_Deviation,			#  7
+				Figure_of_Merit ]			# 19
 
-		features = [ Maximum_Value,
-				Minimum_Value,
-				Mean,
-				Peak_to_Peak,
-				Harmonic_Mean,
-				Trimmed_Mean,
-				Variance,
-				Standard_Deviation,
-				Mean_Absolute_Deviation,
-				Median_Absolute_Deviation,
-				Crest_Factor,
-				Peak2RMS,
-				Skewness,
-				Kurtosis,
-				Shape_Factor,
-				Root_Mean_Square,
-				Mean_Frequency,
-				Frequency_Center,
-				Root_Mean_Square_Frequency,
-				Figure_of_Merit ]
-
-		return [ features[ index ] for index in
-			( 10, 18, 11, 12, 16, 1, 13, 17, 9, 2, 14, 3, 5, 15, 4, 6, 0, 8, 7, 19 ) ]
-
+"""
+For future use
+"""
 class Result_Stats:
 	def __init__(self):
 		self.true_positive  = 0
@@ -327,7 +346,11 @@ class Result_Stats:
 		return ( 2 * self.Recall() * self.Precision() )\
 			   /( self.Recall() + self.Precision() )
 
-
+"""
+The primary automator of training and testing the AIs.
+It prompts the user for action,loads the files given as arguments
+	and runs the AI support functions
+"""
 def main( arguments: List ):
 	prompt = input( "Menu:\n\t1)\tTraining\n\t2)\tTesting\n\tOther)\tQuit\n" )
 

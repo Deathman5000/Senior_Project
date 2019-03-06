@@ -137,7 +137,10 @@ function_list = [
 "Root_Mean_Square_Frequency",
 "Figure_of_Merit" ]
 
-# old version of Stat_Features
+"""
+Old version of Stat_Features
+Only used to test the validity of Stat_Features
+"""
 def Stat_Features_uncondensed( input_list, time_start, time_end ):
 	Length   = len( input_list )
 
@@ -268,19 +271,20 @@ def Stat_Features_uncondensed( input_list, time_start, time_end ):
 
 class Test_Stat_Features( TestCase ):
 	#SFfe
+	# These just need to run without error
 	def test_Stat_Features_finishes_edge( self ):
-		# These just need to run without error
 		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  1, 1, 1 ], 1, 2 ) ), 20 )
 		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [ -1, 0, 1 ], 1, 2 ) ), 20 )
 		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  0, 0, 0 ], 1, 2 ) ), 20 )
 
 	#SFdz
+	# These handle error cases and give a default return list
 	def test_Stat_Features_defaults_to_zero( self ):
-		# These handle error cases and give a default return list
 		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [        ], 1, 2 ), [ 0 ] * 20 )
 		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 1, 2, 3 ], 1, 1 ), [ 0 ] * 20 )
 
 	#SFce
+	# This is a test of (near) equality
 	def test_Stat_Features_uncondensed_equality( self ):
 		max_string = max( len( name ) for name in function_list )
 		output = "F{:<2} {:" + str( max_string ) + "}\t {:<20}\t {}"

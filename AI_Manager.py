@@ -8,6 +8,7 @@ from statistics import median
 from scipy import fftpack
 from scipy import signal
 import threading
+from Decision_Tree import Decision_Tree
 
 """
 This function loads the xl file given into a 2D list
@@ -36,8 +37,7 @@ class AI_Manager:
 	def __init__( self ):
 		self.__feature_list__ = None
 		self.__restraint__ = 20
-		# VVV This set needs refactoring VVV
-		self.__AIs__ = [] ## none thus far
+		self.__AIs__ = [ Decision_Tree() ]
 
 	def set_restraint( self, input_value: int ):
 		if 0 < input_value <= 20:
@@ -68,8 +68,7 @@ class AI_Manager:
 				test_feature_list = self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ]
 
 				for ai in self.__AIs__:
-					# 	VVV This function needs refactoring VVV
-					test_result = ai.AI_result_function( test_feature_list )
+					test_result = ai.classify( test_feature_list )
 
 					Precision_Stats[ ai.__class__.__name__ ][ expected_result ][ test_result ] += 1
 
@@ -80,32 +79,29 @@ class AI_Manager:
 	"""
 	def Train_AIs( self, input_list: List[ List[ List[ float ] ] ], expected_result_list: List[ List[ float ] ]  ):
 
-		for _2D_gear_list, _2D_expected_result in zip( input_list, expected_result_list ):
+		test_feature_list = []
+
+		for _2D_gear_list in input_list:
 			test_time_start = min( _2D_gear_list[ 0 ] )
 			test_time_end = max( _2D_gear_list[ 0 ] )
 
-			test_feature_list = [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
+			test_feature_list += [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
-			# 									VVV This function needs refactoring VVV
-			ai_threads = [ threading.Thread( target = ai.AI_training_function, args = ( test_feature_list, _2D_expected_result ) ) for ai in self.__AIs__ ]
+		_2D_expected_result = [ item for sublist in expected_result_list for item in sublist ]
 
-			for ai_thread in ai_threads:
-				ai_thread.start()
+		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, _2D_expected_result ) ) for ai in self.__AIs__ ]
 
-			for ai_thread in ai_threads:
-				ai_thread.join()
+		for ai_thread in ai_threads:
+			ai_thread.start()
 
+		for ai_thread in ai_threads:
+			ai_thread.join()
 
-	def Setup_AI( self, AI_class ):
-		#AI_class.__init__()
-		pass
-
-	def Get_Result( self, AI_function ):
+	def Determine_Best_Result( self ):
 		# determine AI to use
 
 		# get result from AI
-		# VVV This function needs refactoring VVV
-		return AI_result_function( self.__feature_list__[ : self.__restraint__ ] )
+		return self.__AIs__[ 0 ].classify( self.__feature_list__[ : self.__restraint__ ] )
 
 	"""
 	This function gets the statistical features of the acceleration data given to it.
@@ -390,8 +386,8 @@ def main( arguments: List ):
 					except Exception:
 						pass
 
-					data_array.append( [ workbook_data ] )
-					results_array.append( [ [ expected_crack_size ] * ( wb_length - 1 ) ] )
+					data_array.append( workbook_data )
+					results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
 
 			except openpyxl.utils.exceptions.InvalidFileException:
 				if verbose: print( "Error: cannot load from", arg )
@@ -416,6 +412,16 @@ def main( arguments: List ):
 
 			if verbose: print( "Finished" )
 		else:
+			loaded = True
+
+			for ai in manager.__AIs__:
+				if not ai.is_loaded():
+					loaded = False
+					print( "Error: {} is not loaded".format( ai.__class__.__name__ ) )
+
+			if not loaded:
+				return
+
 			if verbose: print( "Starting Testing" )
 
 			confusion_matrix_set = manager.Test_AIs( data_array, results_array )
@@ -425,7 +431,7 @@ def main( arguments: List ):
 				confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
 				cm_keys = sorted( confusion_matrix )
 
-				print( "{}\n{}{:>27}\n{:11} | {:4} | {:4} | {:4} | {:4}"
+				print( "\n{}\n{}{:>27}\n{:11} | {:4} | {:4} | {:4} | {:4}"
 					   .format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "", *cm_keys ) )
 
 				for expected_result in cm_keys:
@@ -435,12 +441,10 @@ def main( arguments: List ):
 						given_sum = 1
 					print( "{}\n{:11}".format( '-' * 39, expected_result ), end = '' )
 
-					for given_result in sorted( confusion_matrix[ expected_result ].items() ):
+					for given_result in sorted( confusion_matrix[ expected_result ].keys() ):
 						print( " | {:.2f}".format( confusion_matrix[ expected_result ][given_result] / given_sum ),  end = '')
 
 					print()
-				print()
-
 
 if __name__ == "__main__":
 	main( sys.argv[ 1: ] )

@@ -34,10 +34,10 @@ This class loads and runs each AI.
 """
 class AI_Manager:
 
-	def __init__( self ):
+	def __init__( self, load = True ):
 		self.__feature_list__ = None
 		self.__restraint__ = 20
-		self.__AIs__ = [ Decision_Tree() ]
+		self.__AIs__ = [ Decision_Tree( load_tree = load ) ]
 
 	def set_restraint( self, input_value: int ):
 		if 0 < input_value <= 20:
@@ -46,6 +46,9 @@ class AI_Manager:
 	def set_features( self, input_list: List[ float ], time_start: float, time_end: float ):
 		self.__feature_list__ = self.__Statistical_Features__( input_list, time_start, time_end )
 
+	def get_feature_list( self ):
+		return self.__feature_list__[ : self.__restraint__ ]
+
 	"""
 	This function automates the getting a result from each AI from a set of lists.
 	A set of results is returned to be analyzed
@@ -53,24 +56,23 @@ class AI_Manager:
 	def Test_AIs( self, input_list: List[ List[ List[ float ] ] ], expected_result_list: List[ List[ float ] ] ):
 
 		Precision_Stats = {}
+		unique_expected_results = set( [ item for sublist in expected_result_list for item in sublist ] )
 
 		for ai in self.__AIs__:
-			Precision_Stats.update( { ai.__class__.__name__: { 0: { 0: 0, 1.5: 0, 3: 0, 4.5: 0 },
-															1.5: { 0: 0, 1.5: 0, 3: 0, 4.5: 0 },
-															3:   { 0: 0, 1.5: 0, 3: 0, 4.5: 0 },
-															4.5: { 0: 0, 1.5: 0, 3: 0, 4.5: 0 } } } )
+			Precision_Stats.update( { ai.__class__.__name__: { value : {} for value in unique_expected_results } } )
 
 		for _2D_gear_list, _2D_expected_result in zip( input_list, expected_result_list ):
 			test_time_start = min( _2D_gear_list[ 0 ] )
 			test_time_end = max( _2D_gear_list[ 0 ] )
 
 			for gear_list, expected_result in zip( _2D_gear_list[ 1 : ], _2D_expected_result ):
-				test_feature_list = self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ]
+				self.set_features( gear_list, test_time_start, test_time_end )
 
-				for ai in self.__AIs__:
-					test_result = ai.classify( test_feature_list )
-
-					Precision_Stats[ ai.__class__.__name__ ][ expected_result ][ test_result ] += 1
+				for ai, test_result in self.GetAllResults().items():
+					if test_result in Precision_Stats[ ai ][ expected_result ].keys():
+						Precision_Stats[ ai ][ expected_result ][ test_result ] += 1
+					else:
+						Precision_Stats[ ai ][ expected_result ][ test_result ] = 1
 
 		return Precision_Stats
 
@@ -87,9 +89,9 @@ class AI_Manager:
 
 			test_feature_list += [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
-		_2D_expected_result = [ item for sublist in expected_result_list for item in sublist ]
+		expected_results = [ item for sublist in expected_result_list for item in sublist ]
 
-		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, _2D_expected_result ) ) for ai in self.__AIs__ ]
+		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, expected_results ) ) for ai in self.__AIs__ ]
 
 		for ai_thread in ai_threads:
 			ai_thread.start()
@@ -100,8 +102,29 @@ class AI_Manager:
 	def Determine_Best_Result( self ):
 		# determine AI to use
 
-		# get result from AI
-		return self.__AIs__[ 0 ].classify( self.__feature_list__[ : self.__restraint__ ] )
+		# get result from AI (first one for now)
+		return self.__AIs__[ 0 ].classify( self.get_feature_list() )
+
+	"""
+	This function uses the classify function in each AI to get and return a result for each.
+	It requires that each AI to be loaded and the feature list to be set.
+	"""
+	def GetAllResults( self ):
+		results = {}
+		feature_list = self.get_feature_list()
+
+		if feature_list:
+			ai_threads = [ threading.Thread( target = lambda: \
+				results.update( { ai.__class__.__name__: ai.classify( feature_list ) } ) ) \
+					for ai in self.__AIs__ if ai.is_loaded() ]
+
+			for ai_thread in ai_threads:
+				ai_thread.start()
+
+			for ai_thread in ai_threads:
+				ai_thread.join()
+
+		return results
 
 	"""
 	This function gets the statistical features of the acceleration data given to it.
@@ -322,7 +345,7 @@ class AI_Manager:
 For future use
 """
 class Result_Stats:
-	def __init__(self):
+	def __init__( self ):
 		self.true_positive  = 0
 		self.true_negative  = 0
 		self.false_positive = 0
@@ -429,22 +452,40 @@ def main( arguments: List ):
 			# print the confusion matrix
 			for ai in manager.__AIs__:
 				confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
-				cm_keys = sorted( confusion_matrix )
+				expected_lables = sorted( confusion_matrix )
 
-				print( "\n{}\n{}{:>27}\n{:11} | {:4} | {:4} | {:4} | {:4}"
-					   .format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "", *cm_keys ) )
+				# extract a set of keys
+				classified_lables = sorted( set( [ item for sublist in [ list( confusion_matrix[ key ].keys() ) for key in confusion_matrix ] for item in sublist ] ) )
 
-				for expected_result in cm_keys:
+				# keys each as a string
+				classified_lable_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_lables ]
+
+				# maximum lengths for table setup
+				max_left_string = max( max( len( str( lable ) ) for lable in expected_lables ), 11 )
+				max_string = max( len( lable ) for lable in classified_lable_strings )
+				separator = ( max_string + 3 ) * len( classified_lables )
+
+				printing_string = "\n{:" + str( max_left_string + 1 ) + "}\n{}{:>" + str( separator - 1 ) + "}\n{:" + str( max_left_string ) + "}{}"
+				printing_lables_string = " | {:" + str( max_string ) + "}"
+
+				# print top lables
+				print( printing_string.format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "" , "".join( [ printing_lables_string.format( lable ) for lable in classified_lable_strings ] ) ) )
+
+				printing_string = "{}\n{:" + str( max_left_string ) + "}{}"
+				printing_results_string = " | {:." + str( max_string - 2 ) + "f}"
+				separator += max_left_string
+
+				for expected_result in expected_lables:
 					given_sum = sum( confusion_matrix[ expected_result ].values() )
 
 					if not given_sum:
 						given_sum = 1
-					print( "{}\n{:11}".format( '-' * 39, expected_result ), end = '' )
 
-					for given_result in sorted( confusion_matrix[ expected_result ].keys() ):
-						print( " | {:.2f}".format( confusion_matrix[ expected_result ][given_result] / given_sum ),  end = '')
+					# a set of each result
+					result_set = [ confusion_matrix[ expected_result ][ given_result ] / given_sum if given_result in confusion_matrix[ expected_result ].keys() else 0 for given_result in classified_lables ]
 
-					print()
+					print( printing_string.format( '-' * separator, expected_result, "".join( printing_results_string.format( printed_result ) for printed_result in result_set ) ) )
+
 
 if __name__ == "__main__":
 	main( sys.argv[ 1: ] )

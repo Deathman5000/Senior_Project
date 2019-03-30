@@ -8,13 +8,19 @@ class Decision_Tree:
 
 	__SAVED_AI_FILE__ = "decision_tree.data"
 
-	def __init__( self, file = None ):
+	def __init__( self, new_file_path = None, load_tree = True ):
+
+		self.file = None
+
+		if new_file_path:
+			self.file = new_file_path
+		elif self.__SAVED_AI_FILE__:
+			self.file = self.__SAVED_AI_FILE__
+
 		self.tree = None
 
-		if file and os.path.isfile( file ):
-			self.load_tree( file )
-		elif self.__SAVED_AI_FILE__ and os.path.isfile( self.__SAVED_AI_FILE__ ):
-			self.load_tree(self.__SAVED_AI_FILE__)
+		if load_tree and self.file and os.path.isfile( self.file ):
+			self.load_tree( self.file )
 
 	def is_loaded( self ):
 		return True if self.tree else False
@@ -188,7 +194,7 @@ class Decision_Tree:
 	def train( self, input_list: List[ List[ float ] ], input_result: List[ float ] ):
 		""" CAUTION this function WILL destroy the existing tree """
 		self.tree = self.build_tree( [ data + [ result ] for data, result in zip( input_list, input_result ) ] )
-		self.save_tree( self.__SAVED_AI_FILE__ )
+		self.save_tree( self.file )
 
 	def classify( self, input_list: List[ float ] ):
 		if not self.tree:
@@ -198,9 +204,9 @@ class Decision_Tree:
 		return_value = self._classify( input_list, self.tree )
 
 		if isinstance( return_value, dict ):
-			return list( return_value.keys() )[ 0 ]
+			return tuple( return_value.keys() )#[ 0 ]
 		if hasattr( return_value, '__getitem__' ):
-			return return_value[ 0 ]
+			return tuple( return_value )
 		else:
 			return return_value
 

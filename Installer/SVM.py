@@ -8,39 +8,44 @@ from matplotlib import style
 style.use("ggplot")
 from sklearn import svm
 from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
 clf = SVC(kernel = 'linear')
 
+file = "Training_Data4.csv"
+counter = 1
+colnames = ['Crack']
+while(counter <= 4990):
+    y = 'var' + str(counter)
+    colnames.append(y)
+    counter = counter + 1
 
-X = [[0, 0], [1, 1]]
-y = [0, 1]
-clf = svm.SVC(gamma='scale')
-clf.fit(X, y)
-print(clf.predict([[2., 2.]]))
-'''
-x = pd.read_csv("Training_Data.csv")
-a = np.array(x)
-y = a[0,1,2,3]
+#print (colnames)
+data = pd.read_csv(file, names=colnames)
+X = data.drop('Crack', axis=1)
+y = data['Crack']
+#X = X.as_matrix().astype(np.float)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.50)
+#Polynomial Kernel
 
-x = np.column_stack((x.var1, x.var2, x.var3, x.var4))
-x.shape
-#lab_enc = preprocessing.LabelEncoder()
-#encoded = lab_enc.fit_transform(x)
-clf.fit(x, y)
-#clf.predict([[696.898718298454, 471.135059864695]])
-print (y)
-'''
-'''
-X = np.array([[1,2],
-             [5,8],
-             [1.5,1.8],
-             [8,8],
-             [1,0.6],
-             [9,11]])
+svclassifier = SVC(kernel='poly', degree=4)
+svclassifier.fit(X_train, y_train)
+y_pred = svclassifier.predict(X_test)
 
-y = [0,1,0,1,0,1]
-#y = np.array(y)
-clf = svm.SVC(kernel='linear', C = 1.0)
-X = X.reshape(len(X), -1)
-clf.fit(X,y)
-print(clf.predict([0.58,0.76]))
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+'''
+#Gaussian Kernel
+svclassifier = SVC(kernel='rbf')
+svclassifier.fit(X_train, y_train)
+
+#print(y)
+#print(X_train)
+#print(X_test)
+y_pred = svclassifier.predict(X_test)
+
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
 '''

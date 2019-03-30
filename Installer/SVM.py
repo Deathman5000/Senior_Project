@@ -25,17 +25,17 @@ data = pd.read_csv(file, names=colnames)
 X = data.drop('Crack', axis=1)
 y = data['Crack']
 #X = X.as_matrix().astype(np.float)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.50)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.80)
 #Polynomial Kernel
-
-svclassifier = SVC(kernel='poly', degree=4)
+'''
+svclassifier = SVC(kernel='poly', degree=8)
 svclassifier.fit(X_train, y_train)
 y_pred = svclassifier.predict(X_test)
 
 print(confusion_matrix(y_test, y_pred))
 print(classification_report(y_test, y_pred))
-
 '''
+
 #Gaussian Kernel
 svclassifier = SVC(kernel='rbf')
 svclassifier.fit(X_train, y_train)
@@ -47,5 +47,3 @@ y_pred = svclassifier.predict(X_test)
 
 print(confusion_matrix(y_test, y_pred))
 print(classification_report(y_test, y_pred))
-
-'''

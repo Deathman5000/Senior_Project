@@ -3,8 +3,10 @@
 import openpyxl
 from typing import List
 from tkinter import *
-import tkinter.messagebox as tm
-import tkinter.filedialog as fd
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog
+import os
 import threading
 import hashlib
 import binascii
@@ -25,16 +27,17 @@ class Application(Tk):
 		self.title("GeLP")
 		# self.geometry( '{}x{}'.format( WIDTH, HEIGHT) )
 		# self.resizable( 0, 0 ) # this prevents from resizing the window
-		self._menu = TopMenu(self)
-		self._frame = None
+
+		self.menu = TopMenu(self)
+		self.frame = None
 		self.switch_frame(LoginFrame(self))
 
 	def switch_frame(self, new_frame: Frame):
 		# Destroys current frame and replaces it with a new one.
-		if self._frame is not None:
-			self._frame.destroy()
+		if self.frame is not None:
+			self.frame.destroy()
 
-		self._frame = new_frame
+		self.frame = new_frame
 		self.update()
 
 """
@@ -45,7 +48,7 @@ This frame has fields to enter a user name and password
 class LoginFrame(Frame):
 	def __init__(self, input_master: Tk):
 
-		self._master = input_master
+		self.master = input_master
 		super().__init__(input_master)
 
 		self.label_username = Label(self, text="Username:")
@@ -63,6 +66,10 @@ class LoginFrame(Frame):
 		self.login_button.grid(columnspan=2)
 
 		self.pack(anchor="nw")
+		self.master.bind('<Return>', self.return_key_pressed)
+
+	def return_key_pressed( self, event ):
+		self._login_clicked()
 
 	def encrypt(self, password):
 		password = binascii.a2b_qp(password)
@@ -75,36 +82,37 @@ class LoginFrame(Frame):
 
 		password = self.encrypt(password)
 		if (compare.compare(username, password)):
-			tm.showinfo("Login info", "logged in ")
+			messagebox.showinfo("Login info", "logged in ")
 			global LOGGED_IN
 			LOGGED_IN = True
-			self.master.switch_frame(Choiceframe(self.master))
+			self.master.unbind('<Return>')
+			self.master.switch_frame(ChoiceFrame(self.master))
 		else:
-			tm.showinfo("Login info", "failed.")
+			messagebox.showinfo("Login info", "failed.")
 
 """
 Displayed after the user logs in.
 Two buttons; to enter data manually, or to import from a file
 """
-class Choiceframe(Frame):
+class ChoiceFrame(Frame):
 	def __init__(self, input_master: Tk):
 
-		self._master = input_master
+		self.master = input_master
 		super().__init__(input_master)
 
 		self.enter_button = Button(self, text="Enter Data", command=self._enter_clicked)
 		self.import_button = Button(self, text="Import File", command=self._import_clicked)
 
-		self.enter_button.grid(row=0, sticky=E)
-		self.import_button.grid(row=0, column=1)
+		self.enter_button.grid( row = 0, sticky = E )
+		self.import_button.grid( row = 0, column = 1 )
 
 		self.pack(anchor="nw")
 
 	def _enter_clicked(self):
-		self._master.switch_frame(EnterDataframe(self._master))
+		self.master.switch_frame(EnterDataFrame(self.master))
 
 	def _import_clicked(self):
-		file_path = fd.askopenfilename()
+		file_path = filedialog.askopenfilename()
 
 		if file_path:  # if a file was selected
 			try:
@@ -112,52 +120,21 @@ class Choiceframe(Frame):
 				workbook = openpyxl.load_workbook(file_path, read_only=True)
 
 			except openpyxl.utils.exceptions.InvalidFileException:
-				tm.showerror("File error", "Unable to open file as XLSX file")
+				messagebox.showerror("File error", "Unable to open file as XLSX file")
 				return
 
 			## pass workbook to loading frame
-			self._master.switch_frame( Loadingframe( self._master, "File loading.", ResultFrame, subprocess_workbook, [ workbook ] ) )
-
-"""
-This function passes a workbook to process_workbook and receives a 2D list
-It then merges threads back to the UI
-"""
-def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame, target_frame: Frame ):
-	data_array = AI_Manager.process_workbook( input_workbook )
-
-	# waits until the loading frame that called this is completely loaded
-	while not caller._master._frame == caller:
-		pass
-
-	caller._master.switch_frame(target_frame(caller._master, data_array))
-
-"""
-This special frame only displays a given string while
-	an important process is working in the background.
-"""
-class Loadingframe(Frame):
-	def __init__(self, input_master: Tk, loading_text: StringVar, target_frame: Frame, todo_function, todo_arguments):
-		self._master = input_master
-
-		workbook_thread = threading.Thread(target=todo_function, args=todo_arguments + [self, target_frame])
-		workbook_thread.start()
-
-		super().__init__(self._master)
-
-		self.default_label = Label(self, text=loading_text)
-		self.default_label.pack(anchor="nw")
-
-		self.pack(anchor="nw")
+			self.master.switch_frame(LoadingFrame(self.master, "Loading File.", subprocess_workbook, [workbook]))
 
 """
 This frame is where the user can enter in data
 It has two fields for data and two button;
 	to enter more data, or to process what is already entered
 """
-class EnterDataframe(Frame):
+class EnterDataFrame(Frame):
 	def __init__(self, input_master: Tk):
 
-		self._master = input_master
+		self.master = input_master
 		super().__init__(input_master)
 
 		self.default_label_1 = Label(self, text="Type in the values into each box and")
@@ -189,7 +166,7 @@ class EnterDataframe(Frame):
 				time_ = float(time_text)
 				value_ = float(value_text)
 			except ValueError:
-				tm.showinfo("Input Error", "Invalid entry")
+				messagebox.showinfo("Input Error", "Invalid entry")
 				return
 
 			# append data to data collected
@@ -208,7 +185,7 @@ class EnterDataframe(Frame):
 				time_ = float(time_text)
 				value_ = float(value_text)
 			except ValueError:
-				tm.showinfo("Input Error", "Invalid entry")
+				messagebox.showinfo("Input Error", "Invalid entry")
 				return
 
 			# append data to data collected
@@ -225,27 +202,412 @@ class EnterDataframe(Frame):
 		data_array = [keys, [self.data[index] for index in keys]]
 
 		## pass data to AI algorithm
-		self._master.switch_frame(ResultFrame(self._master, data_array))
+		self.master.switch_frame(LoadingFrame(self.master, "Classifying Data", subprocess_AI, [data_array]))
+
+class FolderFrame(Frame):
+	def __init__(self, input_master: Tk):
+
+		self.master = input_master
+		super().__init__(input_master)
+
+		self.text = Label( self, text = \
+			"Only files containing \"CRACK_X.Xmm\" will be considered\n" +
+			"where X.X is the crack size of that file.")
+		self.import_button = Button( self, text = "Import Folder", command = self._import_clicked )
+
+		self.text.grid(row=0)
+		self.import_button.grid(row=1)
+
+		self.pack( anchor = "nw" )
+
+	def _import_clicked(self):
+		folder = filedialog.askdirectory()
+
+		if folder:  # if a folder was selected
+			self.master.switch_frame( LoadingFrame( self.master, "Loading Files.", subprocess_folder, [ folder ] ) )
+
+"""
+This function passes a workbook to process_workbook and receives a 2D list
+It then merges threads back to the UI
+"""
+def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame ):
+	data_array = AI_Manager.process_workbook( input_workbook )
+
+	# waits until the loading frame that called this is completely loaded
+	while not caller.master.frame == caller:
+		pass
+
+	caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI, [ data_array ] ) )
+
+"""
+This function loads and runs the AI, passing the results to the next frame
+"""
+def subprocess_AI( data_array, caller: Frame ):
+	def get_result( data_set ):
+		manager.set_features( data_set, time_start, time_end )
+		AI_data.append( manager.GetAllResults() )
+
+	time_start = min( data_array[ 0 ] )
+	time_end = max( data_array[ 0 ] )
+	AI_data = []
+
+	#load AIs
+	manager = AI_Manager.AI_Manager()
+
+	#get data
+	ai_threads = [ threading.Thread( target = get_result, args = ( data, ) ) for data in data_array[ 1: ] ]
+
+	for ai_thread in ai_threads:
+		ai_thread.start()
+
+	for ai_thread in ai_threads:
+		ai_thread.join()
+
+	# waits until the loading frame that called this is completely loaded
+	while not caller.master.frame == caller:
+		pass
+
+	caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
+
+
+def subprocess_folder( input_folder, caller: Frame ):
+	def process_file( file_ ):
+		try:
+			expected_crack_size = float( file_.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
+			# Open file and load workbook
+			workbook = openpyxl.load_workbook( file_, read_only = True )
+			workbook_data = AI_Manager.process_workbook( workbook )
+
+			wb_length = len( workbook_data )
+
+			if wb_length > 1:
+				data_array.append( workbook_data )
+				results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
+
+		except Exception as e:
+			# print( e )
+			pass
+
+	data_array = []
+	results_array = []
+
+	files = [ '/'.join( [ input_folder, file ] ) for file in os.listdir( input_folder ) ]
+
+	ai_threads = [ threading.Thread( target = process_file, args = ( file, ) ) for file in files ]
+
+	for ai_thread in ai_threads:
+		ai_thread.start()
+
+	for ai_thread in ai_threads:
+		ai_thread.join()
+
+	# waits until the loading frame that called this is completely loaded
+	while not caller.master.frame == caller:
+		pass
+
+	if data_array and results_array:
+		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI_with_expected, [ data_array, results_array ] ) )
+	else:
+		caller.master.switch_frame( ChoiceFrame( caller.master ) )
+
+def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
+	manager = AI_Manager.AI_Manager()
+	confusion_matrix_set = manager.Test_AIs(data_array, results_array)
+
+	# waits until the loading frame that called this is completely loaded
+	while not caller.master.frame == caller:
+		pass
+
+	caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )
+
+"""
+This special frame only displays a given string while
+	an important process is working in the background.
+"""
+class LoadingFrame(Frame):
+	def __init__(self, input_master: Tk, loading_text: str, todo_function, todo_arguments):
+		self.master = input_master
+
+		workbook_thread = threading.Thread(target=todo_function, args=todo_arguments + [ self ])
+		workbook_thread.start()
+
+		super().__init__(self.master)
+
+		self.default_label = Label(self, text=loading_text)
+		self.default_label.pack(anchor="nw")
+
+		self.pack(anchor="nw")
+
+"""
+A prototype frame. In this frame a scroll bar is implemented
+"""
+class ScrollingFrame( Frame ):
+	def __init__( self, input_master: Tk ):
+		self.master = input_master
+		super().__init__( input_master )
+
+		self.canvas = Canvas( self )
+		self.inner_frame = Frame( self.canvas )
+		self.scrollbar = Scrollbar( self, orient = "vertical", command = self.canvas.yview )
+
+		self.canvas.configure( yscrollcommand = self.scrollbar.set )
+		self.scrollbar.pack( side="right", fill="y", anchor = 'e' )
+		self.canvas.pack( side="left", anchor = 'nw', fill = 'both', expand = True )
+
+		self.canvas.create_window( ( 0, 0 ), window = self.inner_frame, anchor = 'nw' )
+		self.inner_frame.bind( "<Configure>", lambda event:\
+			self.canvas.configure( scrollregion = self.canvas.bbox( "all" ) ) )
+
+		#windows
+		self.master.bind("<MouseWheel>", self._on_mousewheel)
+		#linux
+		self.master.bind("<Button-4>", self._on_mousewheel)
+		self.master.bind("<Button-5>", self._on_mousewheel)
+
+	def _on_mousewheel( self, event ):
+	# respond to Linux or Windows wheel event
+		if event.num == 5 or event.delta == -120:
+			self.canvas.yview_scroll( 1, "units" )
+		elif event.num == 4 or event.delta == 120:
+			self.canvas.yview_scroll( -1, "units" )
 
 """
 This is were the result is displayed after the AI has calculated it.
 	>>>It has not been implemented yet<<<
 """
-class ResultFrame( Frame ):
+class ResultFrame( ScrollingFrame ):
+	def __init__( self, input_master: Tk, AI_data ):
+		super().__init__( input_master )
+
+		self.info_frames = []
+
+		ai_threads = [threading.Thread(target = lambda:
+			self.info_frames.append(self.AnswerFrame(self.inner_frame, data)))
+				for data in AI_data ]
+
+		for ai_thread in ai_threads:
+			ai_thread.start()
+
+		for ai_thread in ai_threads:
+			ai_thread.join()
+
+		self.info_frames = [self.AnswerFrame(self.inner_frame, data) for data in AI_data]
+
+		for row_index, sub_frame in enumerate( self.info_frames ):
+			sub_frame.grid( row = row_index )
+
+		self.pack( anchor = "nw" )
+
+	class AnswerFrame(Frame):
+		def __init__( self, input_master: Frame, ai_data ):
+			self.master = input_master
+			super().__init__( input_master )
+
+			self.name_labels = [ Label( self, text = name + ":" ) for name in sorted( ai_data ) ]
+			self.result_labels = [ Label( self, text = ai_data[ name ] ) for name in sorted( ai_data ) ]
+
+			for row_index, ( name_label, result_label ) in enumerate( zip( self.name_labels, self.result_labels ) ):
+				name_label.grid( row = row_index, column = 0 )
+				result_label.grid( row = row_index, column = 1 )
+
+"""
+This frame displays the confusion matrices in the same way that the AI_Manager would.
+"""
+class AnalysisFrame( ScrollingFrame ):
+	def __init__( self, input_master: Tk, AI_data ):
+		super().__init__( input_master )
+
+		self.confusion_matrix_frames = {}
+
+		ai_threads = [ threading.Thread( target = lambda: \
+			self.confusion_matrix_frames.update( { name : self.confusion_matrix( self.inner_frame, name, data ) } ) ) \
+				for name, data in AI_data.items() ]
+
+		for ai_thread in ai_threads:
+			ai_thread.start()
+
+		for ai_thread in ai_threads:
+			ai_thread.join()
+
+		for row_index, ai_name in enumerate( sorted( self.confusion_matrix_frames ) ):
+			self.confusion_matrix_frames[ ai_name ].grid( row = row_index )
+
+		self.pack( anchor = "nw" )
+
+	class confusion_matrix( Frame ):
+		def __init__( self, input_master: Frame, ai_name: str, ai_data ):
+			self.master = input_master
+			super().__init__( input_master )
+
+			# extract a set of keys
+			classified_values = sorted( set( [ item for sublist in [ list( ai_data[ key ].keys() ) for key in ai_data ] for item in sublist ] ) )
+
+			# keys each as a string
+			classified_value_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_values ]
+
+			matrix_height = len( ai_data ) + 1
+			matrix_width = len( classified_value_strings ) + 1
+
+			self.name_label = Label( self, text = ai_name)
+			self.name_label.grid( row = 0, column = 0, columnspan = max( matrix_width, 1 ) )
+
+			self.header1_label = Label( self, text = "Actual Label" )
+			self.header1_label.grid( row = 1, column = 0 )
+
+			self.header2_label = Label( self, text = "Classified Label" )
+			self.header2_label.grid( row = 1, column = 1, columnspan = max( matrix_width - 1, 1 ), sticky = E )
+
+			self.classified_labels = [ Label( self, text = classified_value_text ) for classified_value_text in classified_value_strings ]
+
+			for column_index, label in enumerate( self.classified_labels ):
+				label.grid( row = 2, column = 1 + column_index )
+
+			self.expected_labels = [ Label( self, text = expected_result) for expected_result in sorted( ai_data ) ]
+			self.result_labels = [ [] for _ in ai_data ]
+
+			for row_index, expected_label in enumerate( self.expected_labels ):
+				expected_label.grid( row = 3 + row_index, column = 0, sticky = E  )
+
+			for row_index, expected_result in enumerate( sorted( ai_data ) ):
+
+				given_sum = sum( ai_data[ expected_result ].values() )
+
+				if not given_sum:
+					given_sum = 1
+
+				self.result_labels[ row_index ] = [ Label( self, text = "{:.3g}".format(
+					ai_data[expected_result][given_result] / given_sum
+						if given_result in ai_data[ expected_result ].keys() else 0 ) )
+							for given_result in classified_values ]
+
+				for column_index, result_label in enumerate( self.result_labels[ row_index ] ):
+					result_label.grid( row = 3 + row_index, column = 1 + column_index )
+
+			#self.vertical_separators = [ ttk.Separator( self, orient = VERTICAL ) for _ in classified_value_strings ]
+			#self.horizontal_separators = [ ttk.Separator( self, orient = HORIZONTAL ) for _ in ai_data ]
+
+			#for column_index, separator in enumerate( self.vertical_separators ):
+			#	separator.grid( column = 1 + column_index, row = 2, columnspan = matrix_height, sticky = 'ns' )
+
+			#for row_index, separator in enumerate( self.horizontal_separators ):
+			#	separator.grid( column = 0, row = 1 + row_index, rowspan = matrix_width, sticky = 'ew' )
+			"""
+			print( "DEBUG: {}, {}".format( matrix_height, matrix_width ) )
+
+			confusion_matrix = ai_data
+			classified_lables = classified_values
+			classified_lable_strings = classified_value_strings
+
+			expected_values = sorted( confusion_matrix )
+
+			# maximum lengths for table setup
+			max_left_string = max(max(len(str(value)) for value in expected_values), 11)
+			max_string = max(len(lable) for lable in classified_lable_strings)
+			separator = (max_string + 3) * len(classified_lables)
+
+			printing_string = "\n{:" + str(max_left_string + 1) + "}\n{}{:>" + str(separator - 1) + "}\n{:" + str(
+				max_left_string) + "}{}"
+			printing_lables_string = " | {:" + str(max_string) + "}"
+
+			# print top lables
+			print(printing_string.format( ai_name.title(), "Actual Label", "Classified Label", "", "".join(
+				[printing_lables_string.format(lable) for lable in classified_lable_strings])))
+
+			printing_string = "{}\n{:" + str(max_left_string) + "}{}"
+			printing_results_string = " | {:." + str(max_string - 2) + "f}"
+			separator += max_left_string
+
+			for expected_result in expected_values:
+				given_sum = sum(confusion_matrix[expected_result].values())
+
+				if not given_sum:
+					given_sum = 1
+
+				# a set of each result
+				result_set = [
+					confusion_matrix[expected_result][given_result] / given_sum if given_result in confusion_matrix[
+						expected_result].keys() else 0 for given_result in classified_lables]
+
+				print(printing_string.format('-' * separator, expected_result, "".join(
+					printing_results_string.format(printed_result) for printed_result in result_set)))
+			"""
+
+
+class Old_ResultFrame(Frame):
 	def __init__( self, input_master: Tk, input_data: List[ float ] ):
 
-		self._master = input_master
-		super().__init__(input_master)
+		self.master = input_master
+		super().__init__( input_master )
 
-		for column_index, column in enumerate(input_data):
-			for row_index, value in enumerate(column):
-				default_label = Label(self, text=value)
-				default_label.grid(row=row_index, column=column_index)
+		self.canvas = Canvas( self )
+		self.scrollbar = Scrollbar( self, orient = "vertical", command = self.canvas.yview )
+		self.inner_frame = Frame( self.canvas )
+
+		self.canvas.configure( yscrollcommand = self.scrollbar.set )
+		self.scrollbar.pack( side="right", fill="y", anchor = 'e' )
+		self.canvas.pack( side="left", anchor = 'nw', fill = 'both', expand = True )
+
+		self.canvas.create_window( ( 0, 0 ), window = self.inner_frame, anchor = 'nw' )
+		self.inner_frame.bind( "<Configure>", lambda event:\
+			self.canvas.configure( scrollregion = self.canvas.bbox( "all" ) ) )
+
+		#windows
+		self.master.bind("<MouseWheel>", self._on_mousewheel)
+		#linux
+		self.master.bind("<Button-4>", self._on_mousewheel)
+		self.master.bind("<Button-5>", self._on_mousewheel)
+
+		for column_index, column in enumerate( input_data ):
+			for row_index, value in enumerate( column ):
+				default_label = Label( self.inner_frame, text = value )
+				default_label.grid( row = row_index, column = column_index )
 
 		# self.default_label_1.grid( row = 0, sticky = E )
 
-		self.pack(anchor="nw")
+		self.pack( anchor = "nw" )
 
+	def _on_mousewheel( self, event ):
+	# respond to Linux or Windows wheel event
+		if event.num == 5 or event.delta == -120:
+			self.canvas.yview_scroll( 1, "units" )
+		elif event.num == 4 or event.delta == 120:
+			self.canvas.yview_scroll( -1, "units" )
+
+class AboutFrame( Frame ):
+	paragraph = \
+"""This program uses AI algorithms to assume crack sizes in a gear.
+It is the 2019 senior project of Nathan Bradley, James Hund, T.J. Moore.
+			
+Copyright (c) 2019
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE."""
+
+	def __init__( self, input_master: Tk ):
+		self.master = input_master
+		super().__init__( input_master )
+
+		self.text = Label( self, text = self.paragraph )
+		self.text.pack( anchor = "nw" )
+
+		self.pack( anchor = "nw" )
 """
 A drop down menu that is always at the top
 Used to reset, logout, or exit.
@@ -253,38 +615,56 @@ Used to reset, logout, or exit.
 class TopMenu(Menu):
 	def __init__(self, input_master: Tk):
 
-		self._master = input_master
+		self.master = input_master
 		super().__init__(input_master)
 
-		self._master.configure(menu=self)
+		self.master.configure(menu=self)
 
-		self.sub_menu = Menu(self._master, tearoff=0)
-		self.add_cascade(menu=self.sub_menu, label="File")
-		self.sub_menu.add_command(label="Log out", command=self._Log_out_selected)
-		self.sub_menu.add_command(label="Reset", command=self._Reset_selected)
-		self.sub_menu.add_command(label="Exit", command=self._Exit_selected)
+		self.file_menu = Menu(self.master, tearoff=0)
+		self.add_cascade(menu=self.file_menu, label="File")
+		self.file_menu.add_command(label="Log out", command=self._Log_out_selected)
+		self.file_menu.add_command(label="Reset", command=self._Reset_selected)
+		self.file_menu.add_command(label="Exit", command=self._Exit_selected)
+
+		self.other_menu = Menu(self.master, tearoff=0)
+		self.add_cascade(menu=self.other_menu, label="Other")
+		self.other_menu.add_command(label="Confusion Matrix Analysis", command=self._CMA_selected)
+		self.other_menu.add_command(label="About", command=self._About_selected)
 
 	def _Log_out_selected(self):
 		global LOGGED_IN
 
-		if (LOGGED_IN):
+		if LOGGED_IN:
 			LOGGED_IN = False
-			self._master.switch_frame(LoginFrame(self._master))
+			self.master.switch_frame(LoginFrame(self.master))
 
 	def _Reset_selected(self):
 		global LOGGED_IN
 
-		if (LOGGED_IN):
-			self._master.switch_frame(Choiceframe(self._master))
+		if LOGGED_IN:
+			self.master.switch_frame(ChoiceFrame(self.master))
+		else:
+			self.master.switch_frame(LoginFrame(self.master))
 
 	def _Exit_selected(self):
 		# log out for consistancy
 		global LOGGED_IN
 		LOGGED_IN = False
 
-		self._master.destroy()
-		self._master = None
-# this exits the program
+		self.master.destroy()
+		self.master = None
+		# this exits the program
+
+	def _CMA_selected(self):
+		global LOGGED_IN
+
+		if LOGGED_IN:
+			self.master.switch_frame( FolderFrame( self.master ) )
+		else:
+			messagebox.showinfo( "Error", "Login first" )
+
+	def _About_selected(self):
+		self.master.switch_frame( AboutFrame( self.master ) )
 
 
 if __name__ == "__main__":

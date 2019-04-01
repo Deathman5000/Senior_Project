@@ -49,6 +49,12 @@ class AI_Manager:
 	def get_feature_list( self ):
 		return self.__feature_list__[ : self.__restraint__ ]
 
+	def is_loaded( self ):
+		return [ ai.__class__.__name__ for ai in self.__AIs__ if ai.is_loaded() ]
+
+	def is_not_loaded( self ):
+		return [ ai.__class__.__name__ for ai in self.__AIs__ if not ai.is_loaded() ]
+
 	"""
 	This function automates the getting a result from each AI from a set of lists.
 	A set of results is returned to be analyzed

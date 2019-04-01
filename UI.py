@@ -65,7 +65,7 @@ class LoginFrame(Frame):
 		self.login_button = Button(self, text="Login", command=self._login_clicked)
 		self.login_button.grid(columnspan=2)
 
-		self.pack(anchor="nw")
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 		self.master.bind('<Return>', self.return_key_pressed)
 
 	def return_key_pressed( self, event ):
@@ -106,7 +106,7 @@ class ChoiceFrame(Frame):
 		self.enter_button.grid( row = 0, sticky = E )
 		self.import_button.grid( row = 0, column = 1 )
 
-		self.pack(anchor="nw")
+		self.pack( anchor = "nw" , fill = BOTH, expand = YES)
 
 	def _enter_clicked(self):
 		self.master.switch_frame(EnterDataFrame(self.master))
@@ -155,7 +155,7 @@ class EnterDataFrame(Frame):
 
 		self.data = {}
 
-		self.pack(anchor="nw")
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 	def _next_clicked(self):
 		time_text = self.time_entry.get()
@@ -218,7 +218,7 @@ class FolderFrame(Frame):
 		self.text.grid(row=0)
 		self.import_button.grid(row=1)
 
-		self.pack( anchor = "nw" )
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 	def _import_clicked(self):
 		folder = filedialog.askdirectory()
@@ -263,11 +263,18 @@ def subprocess_AI( data_array, caller: Frame ):
 	for ai_thread in ai_threads:
 		ai_thread.join()
 
+	for ai in manager.is_not_loaded():
+		messagebox.showinfo( "AI Error", "{} is not loaded\nIt will not be displayed".format( ai.title() ) )
+
 	# waits until the loading frame that called this is completely loaded
 	while not caller.master.frame == caller:
 		pass
 
-	caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
+	if manager.is_loaded():
+		caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
+	else:
+		messagebox.showinfo( "AI Error", "No data to be displayed" )
+		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 
 def subprocess_folder( input_folder, caller: Frame ):
@@ -308,6 +315,7 @@ def subprocess_folder( input_folder, caller: Frame ):
 	if data_array and results_array:
 		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI_with_expected, [ data_array, results_array ] ) )
 	else:
+		messagebox.showinfo( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
@@ -318,7 +326,11 @@ def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
 	while not caller.master.frame == caller:
 		pass
 
-	caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )
+	if manager.is_loaded():
+		caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )
+	else:
+		messagebox.showinfo( "AI Error", "No data to be displayed" )
+		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 """
 This special frame only displays a given string while
@@ -336,7 +348,7 @@ class LoadingFrame(Frame):
 		self.default_label = Label(self, text=loading_text)
 		self.default_label.pack(anchor="nw")
 
-		self.pack(anchor="nw")
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 """
 A prototype frame. In this frame a scroll bar is implemented
@@ -348,10 +360,12 @@ class ScrollingFrame( Frame ):
 
 		self.canvas = Canvas( self )
 		self.inner_frame = Frame( self.canvas )
-		self.scrollbar = Scrollbar( self, orient = "vertical", command = self.canvas.yview )
+		self.Y_scrollbar = Scrollbar( self, orient = "vertical", command = self.canvas.yview )
+		self.X_scrollbar = Scrollbar( self, orient = "horizontal", command = self.canvas.xview )
 
-		self.canvas.configure( yscrollcommand = self.scrollbar.set )
-		self.scrollbar.pack( side="right", fill="y", anchor = 'e' )
+		self.canvas.configure( yscrollcommand = self.Y_scrollbar.set, xscrollcommand = self.X_scrollbar.set )
+		self.Y_scrollbar.pack( side= "right", fill= "y", anchor = 'e' )
+		self.X_scrollbar.pack( side= "bottom", fill= "x", anchor = 's' )
 		self.canvas.pack( side="left", anchor = 'nw', fill = 'both', expand = True )
 
 		self.canvas.create_window( ( 0, 0 ), window = self.inner_frame, anchor = 'nw' )
@@ -396,7 +410,7 @@ class ResultFrame( ScrollingFrame ):
 		for row_index, sub_frame in enumerate( self.info_frames ):
 			sub_frame.grid( row = row_index )
 
-		self.pack( anchor = "nw" )
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 	class AnswerFrame(Frame):
 		def __init__( self, input_master: Frame, ai_data ):
@@ -432,7 +446,7 @@ class AnalysisFrame( ScrollingFrame ):
 		for row_index, ai_name in enumerate( sorted( self.confusion_matrix_frames ) ):
 			self.confusion_matrix_frames[ ai_name ].grid( row = row_index )
 
-		self.pack( anchor = "nw" )
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 	class confusion_matrix( Frame ):
 		def __init__( self, input_master: Frame, ai_name: str, ai_data ):
@@ -564,7 +578,7 @@ class Old_ResultFrame(Frame):
 
 		# self.default_label_1.grid( row = 0, sticky = E )
 
-		self.pack( anchor = "nw" )
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 
 	def _on_mousewheel( self, event ):
 	# respond to Linux or Windows wheel event
@@ -573,7 +587,7 @@ class Old_ResultFrame(Frame):
 		elif event.num == 4 or event.delta == 120:
 			self.canvas.yview_scroll( -1, "units" )
 
-class AboutFrame( Frame ):
+class AboutFrame( ScrollingFrame ):
 	paragraph = \
 """This program uses AI algorithms to assume crack sizes in a gear.
 It is the 2019 senior project of Nathan Bradley, James Hund, T.J. Moore.
@@ -601,13 +615,12 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE."""
 
 	def __init__( self, input_master: Tk ):
-		self.master = input_master
 		super().__init__( input_master )
 
-		self.text = Label( self, text = self.paragraph )
+		self.text = Label( self.inner_frame, text = self.paragraph )
 		self.text.pack( anchor = "nw" )
 
-		self.pack( anchor = "nw" )
+		self.pack( anchor = "nw", fill = BOTH, expand = YES )
 """
 A drop down menu that is always at the top
 Used to reset, logout, or exit.

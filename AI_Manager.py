@@ -9,6 +9,7 @@ from scipy import fftpack
 from scipy import signal
 import threading
 from Decision_Tree import Decision_Tree
+import numpy
 
 """
 This function loads the xl file given into a 2D list
@@ -96,6 +97,8 @@ class AI_Manager:
 
 			test_feature_list += [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
+		#test_feature_list = numpy.array( test_feature_list )
+		#expected_results = numpy.array( [ item for sublist in expected_result_list for item in sublist ] )
 		expected_results = [ item for sublist in expected_result_list for item in sublist ]
 
 		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, expected_results ) ) for ai in self.__AIs__ ]
@@ -119,6 +122,7 @@ class AI_Manager:
 	def GetAllResults( self ):
 		results = {}
 		feature_list = self.get_feature_list()
+		#feature_list = numpy.array( self.get_feature_list() )
 
 		if feature_list:
 			ai_threads = [ threading.Thread( target = lambda: \
@@ -389,7 +393,7 @@ def main( arguments: List ):
 					for ai_index, ai_name in enumerate( AI_Manager.__AIs__ ) ] ) \
 				+ "\t{})\tAll\n\tOther)\tCancel\n".format( AI_count + 1 )
 
-		prompt2 = input( header ) #if AI_count > 1 else '1'
+		prompt2 = input( header ) if AI_count > 1 else '1'
 
 		if int( prompt2 ) - 1 in range( AI_count + 1 ):
 			prompt2 = int( prompt2 ) - 1

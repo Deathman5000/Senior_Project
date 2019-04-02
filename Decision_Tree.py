@@ -191,7 +191,7 @@ class Decision_Tree:
 		return self.Decision_Node(question, true_branch, false_branch)
 
 
-	def train( self, input_list: List[ List[ float ] ], input_result: List[ float ] ):
+	def train( self, input_list, input_result ):
 		""" CAUTION this function WILL destroy the existing tree """
 		self.tree = self.build_tree( [ data + [ result ] for data, result in zip( input_list, input_result ) ] )
 		self.save_tree( self.file )

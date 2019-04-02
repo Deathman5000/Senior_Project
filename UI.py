@@ -233,10 +233,6 @@ It then merges threads back to the UI
 def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame ):
 	data_array = AI_Manager.process_workbook( input_workbook )
 
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
-
 	caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI, [ data_array ] ) )
 
 """
@@ -266,10 +262,6 @@ def subprocess_AI( data_array, caller: Frame ):
 	for ai in manager.is_not_loaded():
 		messagebox.showinfo( "AI Error", "{} is not loaded\nIt will not be displayed".format( ai.title() ) )
 
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
-
 	if manager.is_loaded():		# if any AIs are loaded to give an answer
 		caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
 	else:
@@ -283,10 +275,6 @@ def subprocess_folder( input_folder, caller: Frame ):
 	files = [ '/'.join( [ input_folder, file ] ) for file in os.listdir( input_folder ) ]
 	data_array, results_array = AI_Manager.read_files( files )
 
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
-
 	if data_array and results_array:
 		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI_with_expected, [ data_array, results_array ] ) )
 	else:
@@ -299,10 +287,6 @@ This function returns a set of results to be analyzed based on the data and resu
 def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
 	manager = AI_Manager.AI_Manager()
 	confusion_matrix_set = manager.Test_AIs( data_array, results_array )
-
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
 
 	if manager.is_loaded():
 		caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )

@@ -1,6 +1,0 @@
-The acceleration data for simulated at each crack size is given in two parts. For example, acceleration_data_1_CRACK_0.0mm and acceleration_data_2_CRACK_0.0mm belong to the same simulation for 0.0mm cracksize (no crack case). It was split for handling purposes since the files were too large. 
-
-For each crack size the simulation was run 400 times (different torque and shaft speed combinations), 200 rans stored at each file, and was run from 0.02 to 0.033687943 seconds (9880 data points). That is equivalent to 721,803 data points per second (721,803 Hz). The time window is selected after the transient response has receded.
-
-Let me know if you have questions. 
- 

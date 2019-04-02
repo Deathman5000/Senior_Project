@@ -8,7 +8,7 @@ class Decision_Tree:
 
 	__SAVED_AI_FILE__ = "decision_tree.data"
 
-	def __init__( self, new_file_path = None, load_tree = True ):
+	def __init__( self, new_file_path = None, Load = True ):
 
 		self.file = None
 
@@ -19,7 +19,7 @@ class Decision_Tree:
 
 		self.tree = None
 
-		if load_tree and self.file and os.path.isfile( self.file ):
+		if Load and self.file and os.path.isfile( self.file ):
 			self.load_tree( self.file )
 
 	def is_loaded( self ):

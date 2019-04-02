@@ -33,11 +33,12 @@ def process_workbook( input_workbook: openpyxl.Workbook ):
 This class loads and runs each AI.
 """
 class AI_Manager:
+	__AIs__ = [ Decision_Tree ]
 
 	def __init__( self, load = True ):
 		self.__feature_list__ = None
 		self.__restraint__ = 20
-		self.__AIs__ = [ Decision_Tree( load_tree = load ) ]
+		self.__AIs__ = [ AI( Load = load ) for AI in self.__AIs__ ]
 
 	def set_restraint( self, input_value: int ):
 		if 0 < input_value <= 20:
@@ -377,120 +378,135 @@ It prompts the user for action,loads the files given as arguments
 	and runs the AI support functions
 """
 def main( arguments: List ):
-	prompt = input( "Menu:\n\t1)\tTraining\n\t2)\tTesting\n\tOther)\tQuit\n" )
+	prompt1 = input( "Menu:\n\t1)\tTraining\n\t2)\tTesting\n\tOther)\tQuit\n" )
 
-	if prompt == '1' or prompt == '2':
+	if prompt1 == '1' or prompt1 == '2':
 
-		verbose = False
+		AI_count = len( AI_Manager.__AIs__ )
 
-		if "-v" in arguments:
-			arguments.remove( "-v" )
-			verbose = True
-		elif "-verbose" in arguments:
-			arguments.remove( "-verbose" )
-			verbose = True
+		header = "\nTraining\n" if prompt1 == '1' else "\nTesting\n"
+		header += "".join( [ "\t{})\t{}\n".format( ai_index + 1, ai_name.__name__ ) \
+					for ai_index, ai_name in enumerate( AI_Manager.__AIs__ ) ] ) \
+				+ "\t{})\tAll\n\tOther)\tCancel\n".format( AI_count + 1 )
 
-		if not arguments:
-			print( "No file given" )
-			return
+		prompt2 = input( header ) #if AI_count > 1 else '1'
 
-		data_array = []
-		results_array = []
+		if int( prompt2 ) - 1 in range( AI_count + 1 ):
+			prompt2 = int( prompt2 ) - 1
 
-		for arg in arguments:
-			if verbose: print( "Loading from", arg )
+			if prompt2 in range( AI_count ):
+				AI_Manager.__AIs__ = [ AI_Manager.__AIs__[ prompt2 ] ]
 
-			try:
-				# Open file and load workbook
-				workbook = openpyxl.load_workbook( arg, read_only = True )
-				workbook_data = process_workbook( workbook )
+			verbose = False
 
-				wb_length = len( workbook_data )
+			if "-v" in arguments:
+				arguments.remove( "-v" )
+				verbose = True
+			elif "-verbose" in arguments:
+				arguments.remove( "-verbose" )
+				verbose = True
 
-				if wb_length > 1:
-					expected_crack_size = 0
-
-					try:
-						expected_crack_size = float( arg.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
-					except Exception:
-						pass
-
-					data_array.append( workbook_data )
-					results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
-
-			except openpyxl.utils.exceptions.InvalidFileException:
-				if verbose: print( "Error: cannot load from", arg )
-
-		if not data_array:
-			print( "Files not usable" )
-			return
-
-		if verbose:
-			print( "Loading AIs" )
-
-		manager = AI_Manager()
-
-		if not manager.__AIs__:
-			print( "Error: No AIs loaded" )
-			return
-
-		if prompt == '1':
-			if verbose: print( "Starting Training" )
-
-			manager.Train_AIs( data_array, results_array )
-
-			if verbose: print( "Finished" )
-		else:
-			loaded = True
-
-			for ai in manager.__AIs__:
-				if not ai.is_loaded():
-					loaded = False
-					print( "Error: {} is not loaded".format( ai.__class__.__name__ ) )
-
-			if not loaded:
+			if not arguments:
+				print( "No file given" )
 				return
 
-			if verbose: print( "Starting Testing" )
+			data_array = []
+			results_array = []
 
-			confusion_matrix_set = manager.Test_AIs( data_array, results_array )
+			for arg in arguments:
+				if verbose: print( "Loading from", arg )
 
-			# print the confusion matrix
-			for ai in manager.__AIs__:
-				confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
-				expected_lables = sorted( confusion_matrix )
+				try:
+					# Open file and load workbook
+					workbook = openpyxl.load_workbook( arg, read_only = True )
+					workbook_data = process_workbook( workbook )
 
-				# extract a set of keys
-				classified_lables = sorted( set( [ item for sublist in [ list( confusion_matrix[ key ].keys() ) for key in confusion_matrix ] for item in sublist ] ) )
+					wb_length = len( workbook_data )
 
-				# keys each as a string
-				classified_lable_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_lables ]
+					if wb_length > 1:
+						expected_crack_size = 0
 
-				# maximum lengths for table setup
-				max_left_string = max( max( len( str( lable ) ) for lable in expected_lables ), 11 )
-				max_string = max( len( lable ) for lable in classified_lable_strings )
-				separator = ( max_string + 3 ) * len( classified_lables )
+						try:
+							expected_crack_size = float( arg.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
+						except Exception:
+							pass
 
-				printing_string = "\n{:" + str( max_left_string + 1 ) + "}\n{}{:>" + str( separator - 1 ) + "}\n{:" + str( max_left_string ) + "}{}"
-				printing_lables_string = " | {:" + str( max_string ) + "}"
+						data_array.append( workbook_data )
+						results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
 
-				# print top lables
-				print( printing_string.format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "" , "".join( [ printing_lables_string.format( lable ) for lable in classified_lable_strings ] ) ) )
+				except openpyxl.utils.exceptions.InvalidFileException:
+					if verbose: print( "Error: cannot load from", arg )
 
-				printing_string = "{}\n{:" + str( max_left_string ) + "}{}"
-				printing_results_string = " | {:." + str( max_string - 2 ) + "f}"
-				separator += max_left_string
+			if not data_array:
+				print( "Files not usable" )
+				return
 
-				for expected_result in expected_lables:
-					given_sum = sum( confusion_matrix[ expected_result ].values() )
+			if verbose:
+				print( "Loading AIs" )
 
-					if not given_sum:
-						given_sum = 1
+			manager = AI_Manager()
 
-					# a set of each result
-					result_set = [ confusion_matrix[ expected_result ][ given_result ] / given_sum if given_result in confusion_matrix[ expected_result ].keys() else 0 for given_result in classified_lables ]
+			if not manager.__AIs__:
+				print( "Error: No AIs loaded" )
+				return
 
-					print( printing_string.format( '-' * separator, expected_result, "".join( printing_results_string.format( printed_result ) for printed_result in result_set ) ) )
+			if prompt1 == '1':
+				if verbose: print( "Starting Training" )
+
+				manager.Train_AIs( data_array, results_array )
+
+				if verbose: print( "Finished" )
+			else:
+				loaded = True
+
+				for ai in manager.__AIs__:
+					if not ai.is_loaded():
+						loaded = False
+						print( "Error: {} is not loaded".format( ai.__class__.__name__ ) )
+
+				if not loaded:
+					return
+
+				if verbose: print( "Starting Testing" )
+
+				confusion_matrix_set = manager.Test_AIs( data_array, results_array )
+
+				# print the confusion matrix
+				for ai in manager.__AIs__:
+					confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
+					expected_lables = sorted( confusion_matrix )
+
+					# extract a set of keys
+					classified_lables = sorted( set( [ item for sublist in [ list( confusion_matrix[ key ].keys() ) for key in confusion_matrix ] for item in sublist ] ) )
+
+					# keys each as a string
+					classified_lable_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_lables ]
+
+					# maximum lengths for table setup
+					max_left_string = max( max( len( str( lable ) ) for lable in expected_lables ), 11 )
+					max_string = max( len( lable ) for lable in classified_lable_strings )
+					separator = ( max_string + 3 ) * len( classified_lables )
+
+					printing_string = "\n{:" + str( max_left_string + 1 ) + "}\n{}{:>" + str( separator - 1 ) + "}\n{:" + str( max_left_string ) + "}{}"
+					printing_lables_string = " | {:" + str( max_string ) + "}"
+
+					# print top lables
+					print( printing_string.format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "" , "".join( [ printing_lables_string.format( lable ) for lable in classified_lable_strings ] ) ) )
+
+					printing_string = "{}\n{:" + str( max_left_string ) + "}{}"
+					printing_results_string = " | {:." + str( max_string - 2 ) + "f}"
+					separator += max_left_string
+
+					for expected_result in expected_lables:
+						given_sum = sum( confusion_matrix[ expected_result ].values() )
+
+						if not given_sum:
+							given_sum = 1
+
+						# a set of each result
+						result_set = [ confusion_matrix[ expected_result ][ given_result ] / given_sum if given_result in confusion_matrix[ expected_result ].keys() else 0 for given_result in classified_lables ]
+
+						print( printing_string.format( '-' * separator, expected_result, "".join( printing_results_string.format( printed_result ) for printed_result in result_set ) ) )
 
 
 if __name__ == "__main__":

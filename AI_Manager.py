@@ -31,6 +31,57 @@ def process_workbook( input_workbook: openpyxl.Workbook ):
 	return return_data
 
 """
+This function opens the given file as a excel file and returns a list of it's values and expected results
+"""
+def process_file( file, verbose = False ):
+	if verbose: print( "Loading from", file )
+
+	try:
+		expected_crack_size = None
+
+		try:
+			expected_crack_size = float( file.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
+		except Exception:
+			pass
+
+		# Open file and load workbook
+		workbook = openpyxl.load_workbook( file, read_only = True )
+		workbook_data = process_workbook( workbook )
+
+		wb_length = len( workbook_data )
+
+		if wb_length > 1:
+			return workbook_data, [ expected_crack_size ] * ( wb_length - 1 )
+
+	except Exception:
+		if verbose: print( "Error: cannot load from", file )
+
+"""
+This function executes process_file for each file in the input_files argument
+and combines the results into lists
+"""
+def read_files( input_files, verbose = False ):
+	def insert_both( file ):
+		result = process_file( file, verbose )
+
+		if result:
+			if result[ 0 ]: data_array.append( result[ 0 ] )
+			if result[ 1 ]: results_array.append( result[ 1 ] )
+
+	data_array = []
+	results_array = []
+
+	ai_threads = [ threading.Thread( target = insert_both, args = ( file, ) ) for file in input_files ]
+
+	for ai_thread in ai_threads:
+		ai_thread.start()
+
+	for ai_thread in ai_threads:
+		ai_thread.join()
+
+	return data_array, results_array
+
+"""
 This class loads and runs each AI.
 """
 class AI_Manager:
@@ -414,32 +465,7 @@ def main( arguments: List ):
 				print( "No file given" )
 				return
 
-			data_array = []
-			results_array = []
-
-			for arg in arguments:
-				if verbose: print( "Loading from", arg )
-
-				try:
-					# Open file and load workbook
-					workbook = openpyxl.load_workbook( arg, read_only = True )
-					workbook_data = process_workbook( workbook )
-
-					wb_length = len( workbook_data )
-
-					if wb_length > 1:
-						expected_crack_size = 0
-
-						try:
-							expected_crack_size = float( arg.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
-						except Exception:
-							pass
-
-						data_array.append( workbook_data )
-						results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
-
-				except openpyxl.utils.exceptions.InvalidFileException:
-					if verbose: print( "Error: cannot load from", arg )
+			data_array, results_array = read_files( arguments, verbose )
 
 			if not data_array:
 				print( "Files not usable" )

@@ -1,6 +1,7 @@
 # AI_Manager.py
 
 import sys
+import os
 import openpyxl
 from typing import List
 from math import sqrt
@@ -9,6 +10,7 @@ from scipy import fftpack
 from scipy import signal
 import threading
 from Decision_Tree import Decision_Tree
+import numpy
 
 """
 This function loads the xl file given into a 2D list
@@ -30,14 +32,69 @@ def process_workbook( input_workbook: openpyxl.Workbook ):
 	return return_data
 
 """
+This function opens the given file as a excel file and returns a list of it's values and expected results
+"""
+def process_file( file, verbose = False ):
+	if verbose: print( "Loading from", file )
+
+	try:
+		expected_crack_size = None
+
+		try:
+			expected_crack_size = float( file.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
+		except Exception:
+			pass
+
+		# Open file and load workbook
+		workbook = openpyxl.load_workbook( file, read_only = True )
+		workbook_data = process_workbook( workbook )
+
+		wb_length = len( workbook_data )
+
+		if wb_length > 1:
+			return workbook_data, [ expected_crack_size ] * ( wb_length - 1 )
+
+	except Exception:
+		if verbose: print( "Error: cannot load from", file )
+
+"""
+This function executes process_file for each file in the input_files argument
+and combines the results into lists
+"""
+def read_files( input_files, verbose = False ):
+	def insert_both( file ):
+		if os.path.isfile( file ):
+			result = process_file( file, verbose )
+
+			if result:
+				if result[ 0 ]: data_array.append( result[ 0 ] )
+				if result[ 1 ]: results_array.append( result[ 1 ] )
+		else:
+			if verbose: print( "Error: {} is not a file to load from".format( file ) )
+
+	data_array = []
+	results_array = []
+
+	ai_threads = [ threading.Thread( target = insert_both, args = ( file, ) ) for file in input_files ]
+
+	for ai_thread in ai_threads:
+		ai_thread.start()
+
+	for ai_thread in ai_threads:
+		ai_thread.join()
+
+	return data_array, results_array
+
+"""
 This class loads and runs each AI.
 """
 class AI_Manager:
+	__AIs__ = [ Decision_Tree ]
 
 	def __init__( self, load = True ):
 		self.__feature_list__ = None
 		self.__restraint__ = 20
-		self.__AIs__ = [ Decision_Tree( load_tree = load ) ]
+		self.__AIs__ = [ AI( Load = load ) for AI in self.__AIs__ ]
 
 	def set_restraint( self, input_value: int ):
 		if 0 < input_value <= 20:
@@ -95,6 +152,8 @@ class AI_Manager:
 
 			test_feature_list += [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
+		#test_feature_list = numpy.array( test_feature_list )
+		#expected_results = numpy.array( [ item for sublist in expected_result_list for item in sublist ] )
 		expected_results = [ item for sublist in expected_result_list for item in sublist ]
 
 		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, expected_results ) ) for ai in self.__AIs__ ]
@@ -106,10 +165,24 @@ class AI_Manager:
 			ai_thread.join()
 
 	def Determine_Best_Result( self ):
-		# determine AI to use
+		counts = {}
+		results = self.GetAllResults().values()
 
-		# get result from AI (first one for now)
-		return self.__AIs__[ 0 ].classify( self.get_feature_list() )
+		for value in results:
+			if value in counts.keys():
+				counts[ value ] += 1
+			else:
+				counts[ value ] = 1
+
+		mode_value = results[ 0 ]
+		mode_count = counts[ mode_value ]
+
+		for value in results:
+			if mode_count < counts[ mode_value ]:
+				mode_value = value
+				mode_count = counts[ mode_value ]
+
+		return mode_value
 
 	"""
 	This function uses the classify function in each AI to get and return a result for each.
@@ -118,6 +191,7 @@ class AI_Manager:
 	def GetAllResults( self ):
 		results = {}
 		feature_list = self.get_feature_list()
+		#feature_list = numpy.array( self.get_feature_list() )
 
 		if feature_list:
 			ai_threads = [ threading.Thread( target = lambda: \
@@ -194,7 +268,7 @@ class AI_Manager:
 
 			Sums[ 0 ] += value * value						# Root_Mean_Square, ( Crest_Factor, Peak2RMS, Shape_Factor )
 
-			if value == 0:
+			if value == 0:	# Harmonic Mean is not meant to be used with sets that contain zero
 				Harmonic_Zero = True
 			else:
 				Sums[ 1 ] += 1 / value						# Harmonic_Mean
@@ -227,7 +301,7 @@ class AI_Manager:
 		# F4
 		if Harmonic_Zero:
 			Harmonic_Mean = 0
-		elif Sums[ 1 ] == 0:
+		elif Sums[ 1 ] == 0:	# having negative numbers is the only way to cause this result, Harmonic Mean is not meant to be used on sets that include them
 			Harmonic_Mean = float( 'inf' )
 		else:
 			Harmonic_Mean = Length / Sums[ 1 ]
@@ -235,16 +309,7 @@ class AI_Manager:
 		# F5
 			# Mean excluding outliers (10% trimmed mean)
 
-			# If a data point is within OUTLIER_CRITERIA * IQR of the median
-			# then it is not an outlier
-		OUTLIER_CRITERIA = 1.5 # lower excludes more
-
-		first_quartile = median( input_list[ :Length // 2 ] )
-		last_quartile = median( input_list[ Length // 2 + 1: ] )
-		inter_quartile_range = last_quartile - first_quartile
-
-		Trimmed_Mean = mean( [ value for value in input_list \
-			if not abs( value - Median ) > OUTLIER_CRITERIA * inter_quartile_range ] )
+		Trimmed_Mean = mean( [ value for value in input_list[ Length // 10 : -Length // 10 ] ] )
 
 		# F6
 		Variance = Sums[ 5 ] / Length
@@ -264,33 +329,33 @@ class AI_Manager:
 
 
 		# F10
-		if Root_Mean_Square == 0:
-			Crest_Factor = float( 'inf' )
+		if Root_Mean_Square == 0:	# only possible if all values are zero
+			Crest_Factor = 0
 		else:
 			Crest_Factor = Maximum_Value / Root_Mean_Square
 
 		# F11
 			# Peak_to_Peak_Root_Mean_Square
-		if Root_Mean_Square == 0:
-			Peak2RMS = float( 'inf' )
+		if Root_Mean_Square == 0:	# only possible if all values are zero
+			Peak2RMS = 0
 		else:
 			Peak2RMS = max( abs( Minimum_Value ), abs( Maximum_Value ) ) / Root_Mean_Square
 
 		# F12
-		if Sums[ 5 ] == 0:
+		if Sums[ 5 ] == 0:	# only possible if all values are zero
 			Skewness = 0
 		else:
 			Skewness = Sums[ 6 ] / Sums[ 5 ]
 
 		# F13
-		if Sums[ 5 ] == 0:
-			Kurtosis = float( 'inf' )
+		if Sums[ 5 ] == 0:	# only possible if all values are zero
+			Kurtosis = 0
 		else:
 			Kurtosis = Sums[ 7 ] / ( Length * Variance ** 2 )
 
 		# F14
-		if Sums[ 2 ] == 0:
-			Shape_Factor = float( 'inf' )
+		if Sums[ 2 ] == 0:	# only possible if all values are zero
+			Shape_Factor = 0
 		else:
 			Shape_Factor = Root_Mean_Square * Length / Sums[ 2 ]
 
@@ -377,120 +442,117 @@ It prompts the user for action,loads the files given as arguments
 	and runs the AI support functions
 """
 def main( arguments: List ):
-	prompt = input( "Menu:\n\t1)\tTraining\n\t2)\tTesting\n\tOther)\tQuit\n" )
+	prompt1 = input( "Menu:\n\t1)\tTraining\n\t2)\tTesting\n\tOther)\tQuit\n" )
 
-	if prompt == '1' or prompt == '2':
+	if prompt1 == '1' or prompt1 == '2':
 
-		verbose = False
+		AI_count = len( AI_Manager.__AIs__ )
 
-		if "-v" in arguments:
-			arguments.remove( "-v" )
-			verbose = True
-		elif "-verbose" in arguments:
-			arguments.remove( "-verbose" )
-			verbose = True
+		header = "\nTraining\n" if prompt1 == '1' else "\nTesting\n"
+		header += "".join( [ "\t{})\t{}\n".format( ai_index + 1, ai_name.__name__ ) \
+					for ai_index, ai_name in enumerate( AI_Manager.__AIs__ ) ] ) \
+				+ "\t{})\tAll\n\tOther)\tCancel\n".format( AI_count + 1 )
 
-		if not arguments:
-			print( "No file given" )
-			return
+		prompt2 = input( header ) if AI_count > 1 else '1'
 
-		data_array = []
-		results_array = []
+		if int( prompt2 ) - 1 in range( AI_count + 1 ):
+			prompt2 = int( prompt2 ) - 1
 
-		for arg in arguments:
-			if verbose: print( "Loading from", arg )
+			if prompt2 in range( AI_count ):
+				AI_Manager.__AIs__ = [ AI_Manager.__AIs__[ prompt2 ] ]
 
-			try:
-				# Open file and load workbook
-				workbook = openpyxl.load_workbook( arg, read_only = True )
-				workbook_data = process_workbook( workbook )
+			verbose = False
 
-				wb_length = len( workbook_data )
+			if "-v" in arguments:
+				arguments.remove( "-v" )
+				verbose = True
+			elif "-verbose" in arguments:
+				arguments.remove( "-verbose" )
+				verbose = True
 
-				if wb_length > 1:
-					expected_crack_size = 0
-
-					try:
-						expected_crack_size = float( arg.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
-					except Exception:
-						pass
-
-					data_array.append( workbook_data )
-					results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
-
-			except openpyxl.utils.exceptions.InvalidFileException:
-				if verbose: print( "Error: cannot load from", arg )
-
-		if not data_array:
-			print( "Files not usable" )
-			return
-
-		if verbose:
-			print( "Loading AIs" )
-
-		manager = AI_Manager()
-
-		if not manager.__AIs__:
-			print( "Error: No AIs loaded" )
-			return
-
-		if prompt == '1':
-			if verbose: print( "Starting Training" )
-
-			manager.Train_AIs( data_array, results_array )
-
-			if verbose: print( "Finished" )
-		else:
-			loaded = True
-
-			for ai in manager.__AIs__:
-				if not ai.is_loaded():
-					loaded = False
-					print( "Error: {} is not loaded".format( ai.__class__.__name__ ) )
-
-			if not loaded:
+			if not arguments:
+				print( "No file given" )
 				return
 
-			if verbose: print( "Starting Testing" )
+			files = arguments
 
-			confusion_matrix_set = manager.Test_AIs( data_array, results_array )
+			for item in arguments:
+				if os.path.isdir( item ):
+					files.remove( item )
+					files += [ '/'.join( [ item, inner_file ] ) for inner_file in os.listdir( item ) ]
 
-			# print the confusion matrix
-			for ai in manager.__AIs__:
-				confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
-				expected_lables = sorted( confusion_matrix )
+			data_array, results_array = read_files( files, verbose )
 
-				# extract a set of keys
-				classified_lables = sorted( set( [ item for sublist in [ list( confusion_matrix[ key ].keys() ) for key in confusion_matrix ] for item in sublist ] ) )
+			if not data_array:
+				print( "Files not usable" )
+				return
 
-				# keys each as a string
-				classified_lable_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_lables ]
+			if verbose:
+				print( "Loading AIs" )
 
-				# maximum lengths for table setup
-				max_left_string = max( max( len( str( lable ) ) for lable in expected_lables ), 11 )
-				max_string = max( len( lable ) for lable in classified_lable_strings )
-				separator = ( max_string + 3 ) * len( classified_lables )
+			manager = AI_Manager()
 
-				printing_string = "\n{:" + str( max_left_string + 1 ) + "}\n{}{:>" + str( separator - 1 ) + "}\n{:" + str( max_left_string ) + "}{}"
-				printing_lables_string = " | {:" + str( max_string ) + "}"
+			if not manager.__AIs__:
+				print( "Error: No AIs loaded" )
+				return
 
-				# print top lables
-				print( printing_string.format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "" , "".join( [ printing_lables_string.format( lable ) for lable in classified_lable_strings ] ) ) )
+			if prompt1 == '1':
+				if verbose: print( "Starting Training" )
 
-				printing_string = "{}\n{:" + str( max_left_string ) + "}{}"
-				printing_results_string = " | {:." + str( max_string - 2 ) + "f}"
-				separator += max_left_string
+				manager.Train_AIs( data_array, results_array )
 
-				for expected_result in expected_lables:
-					given_sum = sum( confusion_matrix[ expected_result ].values() )
+				if verbose: print( "Finished" )
+			else:
+				loaded = True
 
-					if not given_sum:
-						given_sum = 1
+				for ai in manager.__AIs__:
+					if not ai.is_loaded():
+						loaded = False
+						print( "Error: {} is not loaded".format( ai.__class__.__name__ ) )
 
-					# a set of each result
-					result_set = [ confusion_matrix[ expected_result ][ given_result ] / given_sum if given_result in confusion_matrix[ expected_result ].keys() else 0 for given_result in classified_lables ]
+				if not loaded:
+					return
 
-					print( printing_string.format( '-' * separator, expected_result, "".join( printing_results_string.format( printed_result ) for printed_result in result_set ) ) )
+				if verbose: print( "Starting Testing" )
+
+				confusion_matrix_set = manager.Test_AIs( data_array, results_array )
+
+				# print the confusion matrix
+				for ai in manager.__AIs__:
+					confusion_matrix = confusion_matrix_set[ ai.__class__.__name__ ]
+					expected_lables = sorted( confusion_matrix )
+
+					# extract a set of keys
+					classified_lables = sorted( set( [ item for sublist in [ list( confusion_matrix[ key ].keys() ) for key in confusion_matrix ] for item in sublist ] ) )
+
+					# keys each as a string
+					classified_lable_strings = [ ", ".join( str( item ) for item in sublist ) for sublist in classified_lables ]
+
+					# maximum lengths for table setup
+					max_left_string = max( max( len( str( lable ) ) for lable in expected_lables ), 11 )
+					max_string = max( len( lable ) for lable in classified_lable_strings )
+					separator = ( max_string + 3 ) * len( classified_lables )
+
+					printing_string = "\n{:" + str( max_left_string + 1 ) + "}\n{}{:>" + str( separator - 1 ) + "}\n{:" + str( max_left_string ) + "}{}"
+					printing_lables_string = " | {:" + str( max_string ) + "}"
+
+					# print top lables
+					print( printing_string.format( ai.__class__.__name__.title(), "Actual Label", "Classified Label", "" , "".join( [ printing_lables_string.format( lable ) for lable in classified_lable_strings ] ) ) )
+
+					printing_string = "{}\n{:" + str( max_left_string ) + "}{}"
+					printing_results_string = " | {:." + str( max_string - 2 ) + "f}"
+					separator += max_left_string
+
+					for expected_result in expected_lables:
+						given_sum = sum( confusion_matrix[ expected_result ].values() )
+
+						if not given_sum:
+							given_sum = 1
+
+						# a set of each result
+						result_set = [ confusion_matrix[ expected_result ][ given_result ] / given_sum if given_result in confusion_matrix[ expected_result ].keys() else 0 for given_result in classified_lables ]
+
+						print( printing_string.format( '-' * separator, expected_result, "".join( printing_results_string.format( printed_result ) for printed_result in result_set ) ) )
 
 
 if __name__ == "__main__":

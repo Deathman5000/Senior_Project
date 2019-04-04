@@ -8,7 +8,7 @@ class Decision_Tree:
 
 	__SAVED_AI_FILE__ = "decision_tree.data"
 
-	def __init__( self, new_file_path = None, load_tree = True ):
+	def __init__( self, new_file_path = None, Load = True ):
 
 		self.file = None
 
@@ -19,7 +19,7 @@ class Decision_Tree:
 
 		self.tree = None
 
-		if load_tree and self.file and os.path.isfile( self.file ):
+		if Load and self.file and os.path.isfile( self.file ):
 			self.load_tree( self.file )
 
 	def is_loaded( self ):
@@ -191,7 +191,7 @@ class Decision_Tree:
 		return self.Decision_Node(question, true_branch, false_branch)
 
 
-	def train( self, input_list: List[ List[ float ] ], input_result: List[ float ] ):
+	def train( self, input_list, input_result ):
 		""" CAUTION this function WILL destroy the existing tree """
 		self.tree = self.build_tree( [ data + [ result ] for data, result in zip( input_list, input_result ) ] )
 		self.save_tree( self.file )

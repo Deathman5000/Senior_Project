@@ -233,10 +233,6 @@ It then merges threads back to the UI
 def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame ):
 	data_array = AI_Manager.process_workbook( input_workbook )
 
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
-
 	caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI, [ data_array ] ) )
 
 """
@@ -266,51 +262,18 @@ def subprocess_AI( data_array, caller: Frame ):
 	for ai in manager.is_not_loaded():
 		messagebox.showinfo( "AI Error", "{} is not loaded\nIt will not be displayed".format( ai.title() ) )
 
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
-
-	if manager.is_loaded():
+	if manager.is_loaded():		# if any AIs are loaded to give an answer
 		caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
 	else:
 		messagebox.showinfo( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
-
+"""
+This function returns the data from each file in the given folder 
+"""
 def subprocess_folder( input_folder, caller: Frame ):
-	def process_file( file_ ):
-		try:
-			expected_crack_size = float( file_.split( 'CRACK_' )[ 1 ].split( 'mm' )[ 0 ] )
-			# Open file and load workbook
-			workbook = openpyxl.load_workbook( file_, read_only = True )
-			workbook_data = AI_Manager.process_workbook( workbook )
-
-			wb_length = len( workbook_data )
-
-			if wb_length > 1:
-				data_array.append( workbook_data )
-				results_array.append( [ expected_crack_size ] * ( wb_length - 1 ) )
-
-		except Exception as e:
-			# print( e )
-			pass
-
-	data_array = []
-	results_array = []
-
 	files = [ '/'.join( [ input_folder, file ] ) for file in os.listdir( input_folder ) ]
-
-	ai_threads = [ threading.Thread( target = process_file, args = ( file, ) ) for file in files ]
-
-	for ai_thread in ai_threads:
-		ai_thread.start()
-
-	for ai_thread in ai_threads:
-		ai_thread.join()
-
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
+	data_array, results_array = AI_Manager.read_files( files )
 
 	if data_array and results_array:
 		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI_with_expected, [ data_array, results_array ] ) )
@@ -318,13 +281,12 @@ def subprocess_folder( input_folder, caller: Frame ):
 		messagebox.showinfo( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
+"""
+This function returns a set of results to be analyzed based on the data and results arrays
+"""
 def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
 	manager = AI_Manager.AI_Manager()
-	confusion_matrix_set = manager.Test_AIs(data_array, results_array)
-
-	# waits until the loading frame that called this is completely loaded
-	while not caller.master.frame == caller:
-		pass
+	confusion_matrix_set = manager.Test_AIs( data_array, results_array )
 
 	if manager.is_loaded():
 		caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )

@@ -1,0 +1,80 @@
+import sys
+import os.path
+import pickle
+from typing import List
+import pandas as pd
+from sklearn import tree
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+
+
+class Decision_Tree:
+
+#init, train, load, classify, class name are needed
+
+
+	__SAVED_AI_FILE__ = "decision_tree.data"
+
+	def __init__( self, new_file_path = None, Load = True ):
+
+		self.file = None
+
+		if new_file_path:
+			self.file = new_file_path
+		elif self.__SAVED_AI_FILE__:
+			self.file = self.__SAVED_AI_FILE__
+
+		self.tree = None#error will occur
+
+		if Load and self.file and os.path.isfile( self.file ):
+			self.load_tree( self.file )
+
+	def is_loaded( self ):
+		return True if self.tree else False#will cause error
+		
+	def train( self, input_list, input_result ):#change
+		""" CAUTION this function WILL destroy the existing tree """
+		"""self.tree = self.build_tree( [ data + [ result ] for data, result in zip( input_list, input_result ) ] )"""
+		self.save_tree( self.file )
+
+	def classify( self, input_list: List[ float ] ):
+		if not self.tree:#fix
+			print( "Fatal Error: No Tree Loaded" )
+			sys.exit( 1 )
+
+		return_value = self._classify( input_list, self.tree )
+
+		if isinstance( return_value, dict ):
+			return tuple( return_value.keys() )#[ 0 ]
+		if hasattr( return_value, '__getitem__' ):
+			return tuple( return_value )
+		else:
+			return return_value
+
+	def _classify( self, row, node ):
+		"""See the 'rules of recursion' above."""
+
+		# Base case: we've reached a leaf
+		if isinstance(node, self.Leaf):
+			return node.predictions
+
+		# Decide whether to follow the true-branch or the false-branch.
+		# Compare the feature / value stored in the node,
+		# to the example we're considering.
+		if node.question.match(row):
+			return self._classify(row, node.true_branch)
+		else:
+			return self._classify(row, node.false_branch)
+	def load_tree( self, input_file ):
+		with open( input_file, 'rb' ) as tree_file:
+			tree_blueprint =  pickle.load( tree_file )
+
+		self.tree = self.rebuild_tree( tree_blueprint )
+
+	def save_tree( self, input_file ):
+		tree_list = self.deconstruct_tree( self.tree )
+
+		with open( input_file, 'wb' ) as tree_file:
+			pickle.dump( tree_list, tree_file )

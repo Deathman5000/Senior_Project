@@ -1,6 +1,7 @@
 # AI_Manager.py
 
 import sys
+import os
 import openpyxl
 from typing import List
 from math import sqrt
@@ -62,11 +63,14 @@ and combines the results into lists
 """
 def read_files( input_files, verbose = False ):
 	def insert_both( file ):
-		result = process_file( file, verbose )
+		if os.path.isfile( file ):
+			result = process_file( file, verbose )
 
-		if result:
-			if result[ 0 ]: data_array.append( result[ 0 ] )
-			if result[ 1 ]: results_array.append( result[ 1 ] )
+			if result:
+				if result[ 0 ]: data_array.append( result[ 0 ] )
+				if result[ 1 ]: results_array.append( result[ 1 ] )
+		else:
+			if verbose: print( "Error: {} is not a file to load from".format( file ) )
 
 	data_array = []
 	results_array = []
@@ -161,10 +165,24 @@ class AI_Manager:
 			ai_thread.join()
 
 	def Determine_Best_Result( self ):
-		# determine AI to use
+		counts = {}
+		results = self.GetAllResults().values()
 
-		# get result from AI (first one for now)
-		return self.__AIs__[ 0 ].classify( self.get_feature_list() )
+		for value in results:
+			if value in counts.keys():
+				counts[ value ] += 1
+			else:
+				counts[ value ] = 1
+
+		mode_value = results[ 0 ]
+		mode_count = counts[ mode_value ]
+
+		for value in results:
+			if mode_count < counts[ mode_value ]:
+				mode_value = value
+				mode_count = counts[ mode_value ]
+
+		return mode_value
 
 	"""
 	This function uses the classify function in each AI to get and return a result for each.
@@ -250,7 +268,7 @@ class AI_Manager:
 
 			Sums[ 0 ] += value * value						# Root_Mean_Square, ( Crest_Factor, Peak2RMS, Shape_Factor )
 
-			if value == 0:
+			if value == 0:	# Harmonic Mean is not meant to be used with sets that contain zero
 				Harmonic_Zero = True
 			else:
 				Sums[ 1 ] += 1 / value						# Harmonic_Mean
@@ -283,7 +301,7 @@ class AI_Manager:
 		# F4
 		if Harmonic_Zero:
 			Harmonic_Mean = 0
-		elif Sums[ 1 ] == 0:
+		elif Sums[ 1 ] == 0:	# having negative numbers is the only way to cause this result, Harmonic Mean is not meant to be used on sets that include them
 			Harmonic_Mean = float( 'inf' )
 		else:
 			Harmonic_Mean = Length / Sums[ 1 ]
@@ -291,16 +309,7 @@ class AI_Manager:
 		# F5
 			# Mean excluding outliers (10% trimmed mean)
 
-			# If a data point is within OUTLIER_CRITERIA * IQR of the median
-			# then it is not an outlier
-		OUTLIER_CRITERIA = 1.5 # lower excludes more
-
-		first_quartile = median( input_list[ :Length // 2 ] )
-		last_quartile = median( input_list[ Length // 2 + 1: ] )
-		inter_quartile_range = last_quartile - first_quartile
-
-		Trimmed_Mean = mean( [ value for value in input_list \
-			if not abs( value - Median ) > OUTLIER_CRITERIA * inter_quartile_range ] )
+		Trimmed_Mean = mean( [ value for value in input_list[ Length // 10 : -Length // 10 ] ] )
 
 		# F6
 		Variance = Sums[ 5 ] / Length
@@ -320,33 +329,33 @@ class AI_Manager:
 
 
 		# F10
-		if Root_Mean_Square == 0:
-			Crest_Factor = float( 'inf' )
+		if Root_Mean_Square == 0:	# only possible if all values are zero
+			Crest_Factor = 0
 		else:
 			Crest_Factor = Maximum_Value / Root_Mean_Square
 
 		# F11
 			# Peak_to_Peak_Root_Mean_Square
-		if Root_Mean_Square == 0:
-			Peak2RMS = float( 'inf' )
+		if Root_Mean_Square == 0:	# only possible if all values are zero
+			Peak2RMS = 0
 		else:
 			Peak2RMS = max( abs( Minimum_Value ), abs( Maximum_Value ) ) / Root_Mean_Square
 
 		# F12
-		if Sums[ 5 ] == 0:
+		if Sums[ 5 ] == 0:	# only possible if all values are zero
 			Skewness = 0
 		else:
 			Skewness = Sums[ 6 ] / Sums[ 5 ]
 
 		# F13
-		if Sums[ 5 ] == 0:
-			Kurtosis = float( 'inf' )
+		if Sums[ 5 ] == 0:	# only possible if all values are zero
+			Kurtosis = 0
 		else:
 			Kurtosis = Sums[ 7 ] / ( Length * Variance ** 2 )
 
 		# F14
-		if Sums[ 2 ] == 0:
-			Shape_Factor = float( 'inf' )
+		if Sums[ 2 ] == 0:	# only possible if all values are zero
+			Shape_Factor = 0
 		else:
 			Shape_Factor = Root_Mean_Square * Length / Sums[ 2 ]
 
@@ -465,7 +474,14 @@ def main( arguments: List ):
 				print( "No file given" )
 				return
 
-			data_array, results_array = read_files( arguments, verbose )
+			files = arguments
+
+			for item in arguments:
+				if os.path.isdir( item ):
+					files.remove( item )
+					files += [ '/'.join( [ item, inner_file ] ) for inner_file in os.listdir( item ) ]
+
+			data_array, results_array = read_files( files, verbose )
 
 			if not data_array:
 				print( "Files not usable" )

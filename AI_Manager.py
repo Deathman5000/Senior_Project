@@ -9,7 +9,8 @@ from statistics import median
 from scipy import fftpack
 from scipy import signal
 import threading
-from DT import Decision_Tree
+from Decision_Tree import Decision_Tree
+from RDF import Decision_Forest
 import numpy
 
 """
@@ -89,7 +90,7 @@ def read_files( input_files, verbose = False ):
 This class loads and runs each AI.
 """
 class AI_Manager:
-	__AIs__ = [ Decision_Tree ]
+	__AIs__ = [ Decision_Tree, Decision_Forest ]
 
 	def __init__( self, load = True ):
 		self.__feature_list__ = None
@@ -152,9 +153,9 @@ class AI_Manager:
 
 			test_feature_list += [ self.__Statistical_Features__( gear_list, test_time_start, test_time_end )[ : self.__restraint__ ] for gear_list in _2D_gear_list[ 1 : ] ]
 
-		#test_feature_list = numpy.array( test_feature_list )
-		#expected_results = numpy.array( [ item for sublist in expected_result_list for item in sublist ] )
-		expected_results = [ item for sublist in expected_result_list for item in sublist ]
+		test_feature_list = numpy.array( test_feature_list )
+		expected_results = numpy.array( [ item for sublist in expected_result_list for item in sublist ] )
+		#expected_results = [ item for sublist in expected_result_list for item in sublist ]
 
 		ai_threads = [ threading.Thread( target = ai.train, args = ( test_feature_list, expected_results ) ) for ai in self.__AIs__ ]
 
@@ -190,10 +191,10 @@ class AI_Manager:
 	"""
 	def GetAllResults( self ):
 		results = {}
-		feature_list = self.get_feature_list()
-		#feature_list = numpy.array( self.get_feature_list() )
+		#feature_list = self.get_feature_list()
+		feature_list = numpy.array( self.get_feature_list() )
 
-		if feature_list:
+		if feature_list.any():
 			ai_threads = [ threading.Thread( target = lambda: \
 				results.update( { ai.__class__.__name__: ai.classify( feature_list ) } ) ) \
 					for ai in self.__AIs__ if ai.is_loaded() ]

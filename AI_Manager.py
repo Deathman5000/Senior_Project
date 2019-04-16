@@ -11,6 +11,7 @@ from scipy import signal
 import threading
 from Decision_Tree import Decision_Tree
 from RDF import Decision_Forest
+from SVM import Support_Vector_Machine
 import numpy
 
 """
@@ -90,7 +91,7 @@ def read_files( input_files, verbose = False ):
 This class loads and runs each AI.
 """
 class AI_Manager:
-	__AIs__ = [ Decision_Tree, Decision_Forest ]
+	__AIs__ = [ Decision_Tree, Decision_Forest, Support_Vector_Machine ]
 
 	def __init__( self, load = True ):
 		self.__feature_list__ = None

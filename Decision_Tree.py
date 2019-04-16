@@ -35,7 +35,7 @@ class Decision_Tree:
         lab_enc = preprocessing.LabelEncoder() 
         encoded = lab_enc.fit_transform(input_result)
         # make tree
-        X_train, X_test, y_train, y_test = train_test_split(input_list, encoded, test_size=0.99)
+        X_train, X_test, y_train, y_test = train_test_split(input_list, encoded, test_size = 0.01, train_size = 0.99)
         self.tree = dTree.DecisionTreeClassifier()
         self.tree.fit(X_train, y_train)
         # save tree
@@ -50,8 +50,10 @@ class Decision_Tree:
 
         # convert input into 2d numpy array and predict result
         return_value = self.tree.predict([input_list])
+
         # undo the encode earlier
         return_value = tuple(return_value*1.5)
+
 
         # return result
         if isinstance(return_value, dict):

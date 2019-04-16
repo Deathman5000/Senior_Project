@@ -88,7 +88,7 @@ class LoginFrame(Frame):
 			self.master.unbind('<Return>')
 			self.master.switch_frame(ChoiceFrame(self.master))
 		else:
-			messagebox.showinfo("Login info", "failed.")
+			messagebox.showerror("Login info", "failed.")
 
 """
 Displayed after the user logs in.
@@ -166,7 +166,7 @@ class EnterDataFrame(Frame):
 				time_ = float(time_text)
 				value_ = float(value_text)
 			except ValueError:
-				messagebox.showinfo("Input Error", "Invalid entry")
+				messagebox.showerror("Input Error", "Invalid entry")
 				return
 
 			# append data to data collected
@@ -185,7 +185,7 @@ class EnterDataFrame(Frame):
 				time_ = float(time_text)
 				value_ = float(value_text)
 			except ValueError:
-				messagebox.showinfo("Input Error", "Invalid entry")
+				messagebox.showerror("Input Error", "Invalid entry")
 				return
 
 			# append data to data collected
@@ -233,7 +233,11 @@ It then merges threads back to the UI
 def subprocess_workbook( input_workbook: openpyxl.Workbook, caller: Frame ):
 	data_array = AI_Manager.process_workbook( input_workbook )
 
-	caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI, [ data_array ] ) )
+	if data_array:
+		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI, [ data_array ] ) )
+	else:
+		messagebox.showerror( "File Error", "Failed to load file." )
+		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 """
 This function loads and runs the AI, passing the results to the next frame
@@ -260,12 +264,12 @@ def subprocess_AI( data_array, caller: Frame ):
 		ai_thread.join()
 
 	for ai in manager.is_not_loaded():
-		messagebox.showinfo( "AI Error", "{} is not loaded\nIt will not be displayed".format( ai.title() ) )
+		messagebox.showerror( "AI Error", "{} is not loaded\nIt will not be displayed".format( ai.title() ) )
 
 	if manager.is_loaded():		# if any AIs are loaded to give an answer
 		caller.master.switch_frame( ResultFrame( caller.master, AI_data ) )
 	else:
-		messagebox.showinfo( "AI Error", "No data to be displayed" )
+		messagebox.showerror( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 """
@@ -278,7 +282,7 @@ def subprocess_folder( input_folder, caller: Frame ):
 	if data_array and results_array:
 		caller.master.switch_frame( LoadingFrame( caller.master, "Classifying Data", subprocess_AI_with_expected, [ data_array, results_array ] ) )
 	else:
-		messagebox.showinfo( "AI Error", "No data to be displayed" )
+		messagebox.showerror( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 """
@@ -291,7 +295,7 @@ def subprocess_AI_with_expected( data_array, results_array, caller: Frame ):
 	if manager.is_loaded():
 		caller.master.switch_frame( AnalysisFrame( caller.master, confusion_matrix_set ) )
 	else:
-		messagebox.showinfo( "AI Error", "No data to be displayed" )
+		messagebox.showerror( "AI Error", "No data to be displayed" )
 		caller.master.switch_frame( ChoiceFrame( caller.master ) )
 
 """
@@ -636,7 +640,7 @@ class TopMenu(Menu):
 		if LOGGED_IN:
 			self.master.switch_frame( FolderFrame( self.master ) )
 		else:
-			messagebox.showinfo( "Error", "Login first" )
+			messagebox.showerror( "Error", "Login first" )
 
 	def _About_selected(self):
 		self.master.switch_frame( AboutFrame( self.master ) )

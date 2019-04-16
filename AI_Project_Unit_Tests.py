@@ -270,30 +270,28 @@ def Stat_Features_uncondensed( input_list, time_start, time_end ):
 		( 10, 18, 11, 12, 16, 1, 13, 17, 9, 2, 14, 3, 5, 15, 4, 6, 0, 8, 7, 19 ) ]
 
 class Test_Stat_Features( TestCase ):
-	#SFfe
-	# These just need to run without error
-	def test_Stat_Features_finishes_edge( self ):
-		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  1, 1, 1 ], 1, 2 ) ), 20 )
-		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [ -1, 0, 1 ], 1, 2 ) ), 20 )
-		self.assertEqual( len( AI_Manager.AI_Manager.__Statistical_Features__( [  0, 0, 0 ], 1, 2 ) ), 20 )
+	#SFec
+	# These handle edge cases and still return a list
+	def test_Stat_Features_edge_cases( self ):
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 1, 1, 1, 1, 1 ], 1, 2 ),
+			[ 1.0, 0.0, 1.0, 0, 0.3333333333333333, 1, 0, 0.0, 0.0, 1.0, 1.0, 0, 1.0, 1.0, 1.0, 0.0, 1, 0.0, 0.0, float( 'inf' ) ] )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [-2, -1, 0, 1, 2], 1, 2 ),
+			[ 1.414213562373095, 1.3069827590673755, 1.414213562373095, 0.0, 0.742344242941071, -2, 1.7, 1.2360679774997896, 1.2, 0.0, 1.1785113019775793, 4, -0.5, 1.4142135623730951, 0, 2.0, 2, 1.2, 1.4142135623730951, 1.1755705045849463 ] )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 0, 0, 0, 0, 0 ], 1, 2 ),
+			[ 0, float( 'inf' ), 0, 0, 0.0, 0, 0, float( 'inf' ), 0.0, 0.0, 0, 0, 0.0, 0.0, 0, 0.0, 0, 0.0, 0.0, float( 'inf' ) ] )
 
 	#SFdz
 	# These handle error cases and give a default return list
 	def test_Stat_Features_defaults_to_zero( self ):
-		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [        ], 1, 2 ), [ 0 ] * 20 )
-		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 1, 2, 3 ], 1, 1 ), [ 0 ] * 20 )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [               ], 1, 2 ), [ 0 ] * 20 )
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( [ 1, 2, 3, 4, 5 ], 1, 1 ), [ 0 ] * 20 )
 
-	#SFce
-	# This is a test of (near) equality
-	def test_Stat_Features_uncondensed_equality( self ):
-		max_string = max( len( name ) for name in function_list )
-		output = "F{:<2} {:" + str( max_string ) + "}\t {:<20}\t {}"
-		print( file = sys.stderr )
+	#SFse
+	# This is a test of equality
+	def test_Stat_Features_sample_equality( self ):
+		self.assertEqual( AI_Manager.AI_Manager.__Statistical_Features__( data_set, *time_values ),
+			[ 4.217859220861402, 161718.15876906496, 4.531711857483196, 105.49371009257484, 33.06237446295676, -918.0927253654, 11.369530753041849, 125187.81450014132, 98.28811051347202, -25.533411949161984, 1.7385158991395402, 1772.6011294895002, -36.65873373114751, 202.5929172547362, -119.05115994984546, 40391.93499601878, 854.5084041241, 104.119126400414, 200.97744897380596, 1.1181565898434476 ] )
 
-		for count, ( left, right ) in enumerate( zip( AI_Manager.AI_Manager.__Statistical_Features__( data_set, *time_values ),
-													  		Stat_Features_uncondensed( data_set, *time_values ) ) ):
-			print( output.format( count, function_list[ count ], left, right ), file = sys.stderr )
-			self.assertAlmostEqual( left, right, msg = function_list[ count ] )
 
 
 if __name__ == '__main__':

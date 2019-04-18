@@ -1,1 +1,5 @@
 pyinstaller --onefile --noconsole UI.py AI_Manager.py compare.py Decision_Tree.py RDF.py stats_functs.py SVM.py
+
+
+to train:
+python AI_Manager.py C:\Users\James\Documents\CS4391\Senior_Project\Installer\DATA\acceleration_data_1_CRACK_0.0mm.xlsx C:\Users\James\Documents\CS4391\Senior_Project\Installer\DATA\acceleration_data_1_CRACK_1.5mm.xlsx C:\Users\James\Documents\CS4391\Senior_Project\Installer\DATA\acceleration_data_1_CRACK_3.0mm.xlsx C:\Users\James\Documents\CS4391\Senior_Project\Installer\DATA\acceleration_data_1_CRACK_4.5mm.xlsx

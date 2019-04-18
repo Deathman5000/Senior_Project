@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole UI.py AI_Manager.py compare.py Decision_Tree.py RDF.py stats_functs.py SVM.py

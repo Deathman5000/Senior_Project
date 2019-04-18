@@ -3,10 +3,10 @@
 block_cipher = None
 
 
-a = Analysis(['UI.py', 'compare.py'],
+a = Analysis(['UI.py', 'AI_Manager.py', 'compare.py', 'Decision_Tree.py', 'RDF.py', 'stats_functs.py', 'SVM.py'],
              pathex=['C:\\Users\\James\\Documents\\CS4391\\Senior_Project\\Installer'],
              binaries=[],
-             datas=[('users', 'users')],
+             datas=[],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

@@ -36,8 +36,8 @@ class Support_Vector_Machine:
         return True if self.SVM else False
 
     def train(self, input_list, input_result):
-        """ CAUTION this function WILL destroy the existing tree """
-        """This code coverts that data and makes a tree then saves the tree"""
+        """ CAUTION this function WILL destroy the existing Supprot Vector Mechine Data"""
+        """This code coverts that data and makes a Supprot Vector Mechine then saves the Data"""
         # encode results to 0, 1, 2, 3 to work with sklearn
         lab_enc = preprocessing.LabelEncoder()
         encoded = lab_enc.fit_transform(input_result)
@@ -50,7 +50,7 @@ class Support_Vector_Machine:
 
     def classify(self, input_list: List[float]):
         """this code will test the data given against the tree"""
-        # check if tree is loaded
+        # check if SVM Data is loaded
         if not self.SVM:
             print("Fatal Error: No Tree Loaded")
             sys.exit(1)

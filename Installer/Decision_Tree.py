@@ -29,7 +29,7 @@ class Decision_Tree:
         return True if self.tree else False
 
     def train(self, input_list, input_result):
-        """ CAUTION this function WILL destroy the existing tree """
+        """ CAUTION this function WILL destroy the existing Decision Tree Data """
         """This code coverts that data and makes a tree then saves the tree"""
         # encode results to 0, 1, 2, 3 to work with sklearn
         lab_enc = preprocessing.LabelEncoder() 

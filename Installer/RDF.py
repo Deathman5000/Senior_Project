@@ -35,8 +35,8 @@ class Decision_Forest:
         return True if self.tree else False
 
     def train(self, input_list, input_result):
-        """ CAUTION this function WILL destroy the existing tree """
-        """This code coverts that data and makes a tree then saves the tree"""
+        """ CAUTION this function WILL destroy the existing Decision Forest Data"""
+        """This code coverts that data and makes a Decision Forest then saves the Data"""
         # encode results to 0, 1, 2, 3 to work with sklearn
         lab_enc = preprocessing.LabelEncoder()
         encoded = lab_enc.fit_transform(input_result)
